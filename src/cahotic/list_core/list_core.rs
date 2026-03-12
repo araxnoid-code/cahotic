@@ -1,4 +1,5 @@
 use std::{
+    hint::spin_loop,
     ptr::{self, null_mut},
     sync::{
         Arc,
@@ -6,7 +7,10 @@ use std::{
     },
 };
 
-use crate::{ExecTask, OutputTrait, PoolTask, TaskTrait, TaskWithDependenciesTrait, WaitingTask};
+use crate::{
+    ExecTask, OutputTrait, PoolTask, TaskDependenciesCore, TaskTrait, TaskWithDependenciesTrait,
+    WaitingTask, cahotic::task,
+};
 
 pub struct ListCore<F, FD, O>
 where
@@ -33,6 +37,59 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
+    pub fn get_waiting_task_from_primary_stack(&self) -> Result<*mut WaitingTask<F, FD, O>, &str> {
+        let start_waiting_task = self.start.load(Ordering::Acquire);
+
+        unsafe {
+            let task = loop {
+                let waiting_task = self.end.load(Ordering::Acquire);
+                if waiting_task.is_null() {
+                    return Err("Primary list empty");
+                }
+
+                let next = (*waiting_task).next.load(Ordering::Acquire);
+                if next.is_null() {
+                    while waiting_task != start_waiting_task {
+                        spin_loop();
+                    }
+                }
+
+                let status = self.end.compare_exchange(
+                    waiting_task,
+                    next,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                );
+
+                if let Ok(task) = status {
+                    break task;
+                }
+            };
+
+            Ok(task)
+        }
+    }
+
+    pub fn is_primary_list_empty(&self) -> bool {
+        self.end.load(Ordering::Acquire).is_null()
+    }
+
+    pub fn swap_to_primary(&self) -> Result<(), &str> {
+        if !self.end.load(Ordering::Acquire).is_null() {
+            return Err("PRIMARY LIST NOT EMPTY");
+        }
+
+        let swap_end = self.swap_end.swap(null_mut(), Ordering::AcqRel);
+        if !swap_end.is_null() {
+            let swap_start = self.swap_start.swap(null_mut(), Ordering::AcqRel);
+            self.start.store(swap_start, Ordering::Release);
+            self.end.store(swap_end, Ordering::Release);
+            Ok(())
+        } else {
+            Err("SWAP LIST EMPTY")
+        }
+    }
+
     pub fn spawn_task(&self, task: F) -> PoolTask<O> {
         // main thread only focus in swap queue, base on swap start
         // update in_task handler
@@ -45,7 +102,7 @@ where
             task: ExecTask::Task(task),
             next: AtomicPtr::new(null_mut()),
             waiting_return_ptr: return_ptr,
-            // task_dependencies_core_ptr: Box::leak(Box::new(TaskDependenciesCore::blank())),
+            task_dependencies_core_ptr: Box::leak(Box::new(TaskDependenciesCore::blank())),
             task_dependencies_ptr: Box::leak(Box::new(Vec::new())),
         };
 

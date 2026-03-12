@@ -1,6 +1,6 @@
 use std::sync::atomic::AtomicPtr;
 
-use crate::{ExecTask, PoolTask, TaskWithDependenciesTrait};
+use crate::{ExecTask, PoolTask, TaskDependenciesCore, TaskWithDependenciesTrait};
 
 // task
 pub trait OutputTrait {}
@@ -8,7 +8,7 @@ pub trait TaskTrait<O>
 where
     O: OutputTrait + 'static,
 {
-    fn exec() -> O;
+    fn execute(&self) -> O;
 
     fn is_with_dependencies() -> bool {
         false
@@ -27,6 +27,6 @@ where
     pub(crate) next: AtomicPtr<WaitingTask<F, FD, O>>,
     pub(crate) waiting_return_ptr: &'static AtomicPtr<O>,
     // dependencies
-    // pub(crate) task_dependencies_core_ptr: &'static TaskDependenciesCore<F, FD, O>, // will be shared. to Waiting<O> and WaitingTask<F, O>
+    pub(crate) task_dependencies_core_ptr: &'static TaskDependenciesCore<F, FD, O>, // will be shared. to Waiting<O> and WaitingTask<F, O>
     pub(crate) task_dependencies_ptr: &'static Vec<PoolTask<O>>,
 }
