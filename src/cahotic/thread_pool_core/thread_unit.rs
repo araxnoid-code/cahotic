@@ -82,8 +82,68 @@ where
                 task.waiting_return_ptr.store(output, Ordering::Release);
 
                 // update counter
+                self.list_core.in_task.fetch_add(
+                    task.task_dependencies_core_ptr.len.load(Ordering::SeqCst),
+                    Ordering::SeqCst,
+                );
                 self.done_task.fetch_add(1, Ordering::SeqCst);
             }
         }
+    }
+
+    fn dependencies_handler(&self, task: Box<WaitingTask<F, FD, O>>) -> Option<()> {
+        if task.task_dependencies_core_ptr.status {
+            // update counter
+            let counter = task
+                .task_dependencies_core_ptr
+                .counter
+                .fetch_sub(1, Ordering::Release);
+
+            if counter - 1 != 0 {
+                return None;
+            }
+
+            // update done flag
+            task.task_dependencies_core_ptr
+                .done
+                .store(true, Ordering::Release);
+
+            let check_task = task
+                .task_dependencies_core_ptr
+                .start
+                .load(Ordering::Acquire);
+            if !check_task.is_null() {
+                // CAS RETRY LOOP
+                let start_waiting_task = loop {
+                    let status = task.task_dependencies_core_ptr.start.compare_exchange(
+                        task.task_dependencies_core_ptr
+                            .start
+                            .load(Ordering::Acquire),
+                        null_mut(),
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    );
+
+                    if let Ok(waiting_task) = status {
+                        break waiting_task;
+                    } else {
+                        spin_loop();
+                        continue;
+                    }
+                };
+
+                let end_waiting_task = task
+                    .task_dependencies_core_ptr
+                    .end
+                    .swap(null_mut(), Ordering::Acquire);
+
+                self.list_core
+                    .task_from_dependencies(start_waiting_task, end_waiting_task);
+            }
+        }
+
+        drop(task);
+
+        Some(())
     }
 }

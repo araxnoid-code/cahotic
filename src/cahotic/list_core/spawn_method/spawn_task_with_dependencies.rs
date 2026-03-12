@@ -78,6 +78,10 @@ where
                                 .end
                                 .store(waiting_task_ptr, Ordering::Release);
                         }
+                        dependencies
+                            .task_dependencies_ptr
+                            .len
+                            .fetch_add(1, Ordering::SeqCst);
                     } else {
                         dependencies
                             .task_dependencies_ptr
@@ -102,6 +106,11 @@ where
                             .end
                             .store(waiting_task_ptr, Ordering::Release);
                     }
+
+                    dependencies
+                        .task_dependencies_ptr
+                        .len
+                        .fetch_add(1, Ordering::SeqCst);
                 }
             } else {
                 self.spawn_task_with_dependencies_normal(waiting_task_ptr);

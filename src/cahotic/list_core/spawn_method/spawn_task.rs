@@ -49,4 +49,20 @@ where
             data_ptr: return_ptr,
         }
     }
+
+    pub(crate) fn task_from_dependencies(
+        &self,
+        start_dep: *mut WaitingTask<F, FD, O>,
+        end_dep: *mut WaitingTask<F, FD, O>,
+    ) {
+        let pre_start_task = self.swap_start.swap(start_dep, Ordering::AcqRel);
+        if !pre_start_task.is_null() {
+            unsafe {
+                (*pre_start_task).next.store(end_dep, Ordering::Release);
+            }
+        } else {
+            // saving end waiting task for spanning validation in thread pool later
+            self.swap_end.store(end_dep, Ordering::Release);
+        }
+    }
 }

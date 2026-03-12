@@ -7,13 +7,14 @@ where
     pub(crate) status: bool,
     pub(crate) done: AtomicBool,
     pub(crate) counter: AtomicUsize,
+    pub(crate) len: AtomicU64,
     pub(crate) start: AtomicPtr<WaitingTask<F, FD, O>>, // default null, will capture the task need this task output
     pub(crate) end: AtomicPtr<WaitingTask<F, FD, O>>, // default null, will capture the task need this task output
 }
 
 use std::{
     ptr::null_mut,
-    sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize},
+    sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize},
 };
 
 impl<F, FD, O> TaskDependenciesCore<F, FD, O>
@@ -27,6 +28,7 @@ where
             status: true,
             done: AtomicBool::new(false),
             counter: AtomicUsize::new(counter),
+            len: AtomicU64::new(0),
             start: AtomicPtr::new(null_mut()),
             end: AtomicPtr::new(null_mut()),
         }
@@ -37,6 +39,7 @@ where
             status: false,
             done: AtomicBool::new(false),
             counter: AtomicUsize::new(0),
+            len: AtomicU64::new(0),
             start: AtomicPtr::new(null_mut()),
             end: AtomicPtr::new(null_mut()),
         }

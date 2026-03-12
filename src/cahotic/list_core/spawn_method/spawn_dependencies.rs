@@ -14,7 +14,7 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn spawn_task_dependencies<D, const NF: usize>(
+    pub fn spawn_dependencies<D, const NF: usize>(
         &self,
         dependencies: D,
     ) -> TaskDependencies<F, FD, O>
