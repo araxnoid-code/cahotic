@@ -1,6 +1,6 @@
 use std::{thread::sleep, time::Duration};
 
-use cahotic::{Cahotic, OutputTrait, PoolTask, TaskTrait, TaskWithDependenciesTrait};
+use cahotic::{Cahotic, OutputTrait, PoolWait, TaskTrait, TaskWithDependenciesTrait};
 
 #[derive(Debug)]
 enum MyOutput {
@@ -13,7 +13,7 @@ impl OutputTrait for MyOutput {}
 
 enum MyTask {
     Exec(fn() -> MyOutput),
-    ExecWithDependencies(fn(dependencies: &'static Vec<PoolTask<MyOutput>>) -> MyOutput),
+    ExecWithDependencies(fn(dependencies: &'static Vec<PoolWait<MyOutput>>) -> MyOutput),
 }
 
 impl TaskTrait<MyOutput> for MyTask {
@@ -26,7 +26,7 @@ impl TaskTrait<MyOutput> for MyTask {
 }
 
 impl TaskWithDependenciesTrait<MyOutput> for MyTask {
-    fn execute(&self, dependencies: &'static Vec<PoolTask<MyOutput>>) -> MyOutput {
+    fn execute(&self, dependencies: &'static Vec<PoolWait<MyOutput>>) -> MyOutput {
         match self {
             MyTask::Exec(f) => f(),
             _ => MyOutput::None,

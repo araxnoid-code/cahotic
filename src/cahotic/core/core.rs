@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    ListCore, OutputTrait, PoolTask, TaskTrait, TaskWithDependenciesTrait, ThreadPoolCore,
+    ListCore, OutputTrait, PoolWait, TaskTrait, TaskWithDependenciesTrait, ThreadPoolCore,
 };
 
 pub struct Cahotic<F, FD, O, const N: usize>
@@ -31,7 +31,7 @@ where
         }
     }
 
-    pub fn spawn_task(&self, f: F) -> PoolTask<O> {
+    pub fn spawn_task(&self, f: F) -> PoolWait<O> {
         self.list_core.spawn_task(f)
     }
 

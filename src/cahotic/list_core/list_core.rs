@@ -8,8 +8,8 @@ use std::{
 };
 
 use crate::{
-    ExecTask, OutputTrait, PoolTask, TaskDependenciesCore, TaskTrait, TaskWithDependenciesTrait,
-    WaitingTask, cahotic::task,
+    ArrTaskDependenciesTrait, ExecTask, OutputTrait, PoolWait, TaskDependencies,
+    TaskDependenciesCore, TaskTrait, TaskWithDependenciesTrait, WaitingTask, cahotic::task,
 };
 
 pub struct ListCore<F, FD, O>
@@ -19,16 +19,16 @@ where
     O: 'static + OutputTrait + Send,
 {
     // primary Stack
-    id_counter: AtomicU64,
-    start: AtomicPtr<WaitingTask<F, FD, O>>,
-    end: AtomicPtr<WaitingTask<F, FD, O>>,
+    pub(crate) id_counter: AtomicU64,
+    pub(crate) start: AtomicPtr<WaitingTask<F, FD, O>>,
+    pub(crate) end: AtomicPtr<WaitingTask<F, FD, O>>,
 
     // handler
     pub(crate) in_task: Arc<AtomicU64>,
 
     // Swap Stack
-    swap_start: AtomicPtr<WaitingTask<F, FD, O>>,
-    swap_end: AtomicPtr<WaitingTask<F, FD, O>>,
+    pub(crate) swap_start: AtomicPtr<WaitingTask<F, FD, O>>,
+    pub(crate) swap_end: AtomicPtr<WaitingTask<F, FD, O>>,
 }
 
 impl<F, FD, O> ListCore<F, FD, O>
@@ -92,9 +92,9 @@ where
     }
 
     pub fn swap_to_primary(&self) -> Result<(), &str> {
-        // if !self.end.load(Ordering::Acquire).is_null() {
-        //     return Err("PRIMARY LIST NOT EMPTY");
-        // }
+        if !self.end.load(Ordering::Acquire).is_null() {
+            return Err("PRIMARY LIST NOT EMPTY");
+        }
 
         let swap_end = self.swap_end.swap(null_mut(), Ordering::AcqRel);
         if !swap_end.is_null() {
@@ -104,42 +104,6 @@ where
             Ok(())
         } else {
             Err("SWAP LIST EMPTY")
-        }
-    }
-
-    pub fn spawn_task(&self, task: F) -> PoolTask<O> {
-        // main thread only focus in swap queue, base on swap start
-        // update in_task handler
-        self.in_task.fetch_add(1, Ordering::SeqCst);
-        // create return_ptr
-        let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
-        // create waiting task
-        let waiting_task = WaitingTask {
-            id: self.id_counter.fetch_add(1, Ordering::Release),
-            task: ExecTask::Task(task),
-            next: AtomicPtr::new(null_mut()),
-            waiting_return_ptr: return_ptr,
-            task_dependencies_core_ptr: Box::leak(Box::new(TaskDependenciesCore::blank())),
-            task_dependencies_ptr: Box::leak(Box::new(Vec::new())),
-        };
-
-        let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
-
-        // swap start with new waiting task
-        let pre_start_task = self.swap_start.swap(waiting_task_ptr, Ordering::AcqRel);
-        if !pre_start_task.is_null() {
-            unsafe {
-                (*pre_start_task)
-                    .next
-                    .store(waiting_task_ptr, Ordering::Release);
-            }
-        } else {
-            // saving end waiting task for spanning validation in thread pool later
-            self.swap_end.store(waiting_task_ptr, Ordering::Release);
-        }
-
-        PoolTask {
-            data_ptr: return_ptr,
         }
     }
 }

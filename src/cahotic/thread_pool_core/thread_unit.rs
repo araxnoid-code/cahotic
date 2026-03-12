@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolTask, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
+    ExecTask, ListCore, OutputTrait, PoolWait, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
 };
 
 pub struct ThreadUnit<F, FD, O>
