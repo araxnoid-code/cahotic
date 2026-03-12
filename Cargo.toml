@@ -1,0 +1,9 @@
+[package]
+name = "cahotic"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+src="./src/lib.rs"
+
+[dependencies]
