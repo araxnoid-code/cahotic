@@ -8,8 +8,8 @@ use std::{
 };
 
 use crate::{
-    ExecTask, OutputTrait, PoolWait, TaskDependencies, TaskDependenciesCore, TaskDependenciesTrait,
-    TaskTrait, TaskWithDependenciesTrait, WaitingTask, cahotic::task,
+    ExecTask, OutputTrait, PoolOutput, TaskDependencies, TaskDependenciesCore,
+    TaskDependenciesTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask, cahotic::task,
 };
 
 pub struct ListCore<F, FD, O>
@@ -64,8 +64,8 @@ where
 
             let next = (*waiting_task).next.load(Ordering::Acquire);
             if next.is_null() {
-                while waiting_task != start_waiting_task {
-                    spin_loop();
+                if waiting_task != start_waiting_task {
+                    return Err("Failed get task");
                 }
             }
 
@@ -92,9 +92,9 @@ where
     }
 
     pub fn swap_to_primary(&self) -> Result<(), &str> {
-        if !self.end.load(Ordering::Acquire).is_null() {
-            return Err("PRIMARY LIST NOT EMPTY");
-        }
+        // if !self.end.load(Ordering::Acquire).is_null() {
+        //     return Err("PRIMARY LIST NOT EMPTY");
+        // }
 
         let swap_end = self.swap_end.swap(null_mut(), Ordering::AcqRel);
         if !swap_end.is_null() {

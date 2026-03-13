@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolWait, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
+    ExecTask, ListCore, OutputTrait, PoolOutput, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
 };
 
 pub struct ThreadUnit<F, FD, O>
@@ -19,7 +19,6 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    // thread
     // // unique
     pub(crate) id: usize,
     // share
@@ -41,23 +40,19 @@ where
     pub fn running(&self) {
         // main loop
         loop {
-            // join flag?
             if self.join_flag.load(Ordering::Acquire) {
                 break;
             }
 
             // is primary list empty?
             let is_reprt = self.reprt_handler.swap(false, Ordering::AcqRel);
-            if self.list_core.is_primary_list_empty() && is_reprt {
-                // now, this thread as representative thread
-                // empty, swap waiting_task with swap list
-                if let Err(_) = self.list_core.swap_to_primary() {
-                    // this None, mean swap list empty or primary list not empty
+            if is_reprt {
+                if self.list_core.is_primary_list_empty() {
+                    if let Err(_) = self.list_core.swap_to_primary() {
+                        //
+                    }
                 }
-                // release representative thread
-                (*self.reprt_handler).store(true, Ordering::Release);
-                spin_loop();
-            } else if is_reprt {
+
                 (*self.reprt_handler).store(true, Ordering::Release);
                 spin_loop();
             }

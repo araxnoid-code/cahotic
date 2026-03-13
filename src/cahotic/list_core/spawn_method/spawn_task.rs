@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolWait, TaskDependenciesCore, TaskTrait,
+    ExecTask, ListCore, OutputTrait, PoolOutput, TaskDependenciesCore, TaskTrait,
     TaskWithDependenciesTrait, WaitingTask,
 };
 
@@ -14,7 +14,7 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn spawn_task(&self, task: F) -> PoolWait<O> {
+    pub fn spawn_task(&self, task: F) -> PoolOutput<O> {
         // main thread only focus in swap queue, base on swap start
         // update in_task handler
         self.in_task.fetch_add(1, Ordering::SeqCst);
@@ -45,7 +45,11 @@ where
             self.swap_end.store(waiting_task_ptr, Ordering::Release);
         }
 
-        PoolWait {
+        // let pool_out = PoolOutput {
+        //     data_ptr: return_ptr,
+        // };
+
+        PoolOutput {
             data_ptr: return_ptr,
         }
     }

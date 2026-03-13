@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolWait, TaskDependencies, TaskDependenciesCore,
+    ExecTask, ListCore, OutputTrait, PoolOutput, TaskDependencies, TaskDependenciesCore,
     TaskDependenciesTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
 };
 
@@ -58,13 +58,14 @@ where
                 self.swap_end.store(waiting_task_ptr, Ordering::Release);
             }
 
-            waiting_output.push(PoolWait {
+            waiting_output.push(PoolOutput {
                 data_ptr: return_ptr,
             });
         }
 
-        let waiting_output_leak: &'static mut Vec<PoolWait<O>> =
+        let waiting_output_leak: &'static mut Vec<PoolOutput<O>> =
             Box::leak(Box::new(waiting_output));
+
         TaskDependencies {
             waiting_list: waiting_output_leak,
             task_dependencies_ptr: task_dependencies_core_ptr,

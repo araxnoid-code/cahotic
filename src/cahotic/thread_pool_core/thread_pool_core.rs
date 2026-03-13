@@ -18,7 +18,7 @@ where
     O: 'static + OutputTrait + Send,
 {
     // main thread pool
-    pub(crate) pool: Arc<AtomicPtr<Vec<(Option<JoinHandle<()>>, Arc<ThreadUnit<F, FD, O>>)>>>,
+    pub(crate) pool: Vec<(JoinHandle<()>, Arc<ThreadUnit<F, FD, O>>)>,
 
     // handler
     pub(crate) reprt_handler: Arc<AtomicBool>,
@@ -42,9 +42,7 @@ where
         let done_task = Arc::new(AtomicU64::new(0));
 
         // pool
-        let pool = Arc::new(AtomicPtr::new(Box::into_raw(Box::new(Vec::with_capacity(
-            N,
-        )))));
+        let mut pool = Vec::with_capacity(N);
 
         // block
         let block = Arc::new(AtomicBool::new(false));
@@ -84,11 +82,7 @@ where
             // RX from MPSC
             let shared_thread = rx.recv().unwrap();
             // saving
-            let threads_pool = pool.load(std::sync::atomic::Ordering::Acquire);
-            unsafe {
-                (*threads_pool).push((Some(spawn), shared_thread));
-                pool.store(threads_pool, Ordering::Release);
-            }
+            pool.push((spawn, shared_thread));
         }
 
         block.store(true, Ordering::Release);
@@ -102,31 +96,29 @@ where
         }
     }
 
-    pub fn join(&self) {
-        unsafe {
-            // check, all task done
-            loop {
-                if self.list_core.in_task.load(Ordering::SeqCst)
-                    <= self.done_task.load(Ordering::SeqCst)
-                {
-                    break;
-                }
-                spin_loop();
+    pub fn join(self) {
+        // check, all task done
+        loop {
+            if self.list_core.in_task.load(Ordering::SeqCst)
+                <= self.done_task.load(Ordering::SeqCst)
+            {
+                break;
             }
-
-            // join
-            self.join_flag.store(true, Ordering::Release);
-            for (join_handle, _) in (*self.pool.load(Ordering::Acquire)).iter_mut() {
-                join_handle.take().unwrap().join().unwrap();
-            }
-
-            // for (_, thread) in (*self.pool.load(Ordering::Acquire)).iter_mut() {
-            //     // thread.clean();
-            // }
-
-            // clean pool
-            let pool_ptr = self.pool.swap(null_mut(), Ordering::AcqRel);
-            drop(Box::from_raw(pool_ptr));
+            spin_loop();
         }
+
+        // join
+        self.join_flag.store(true, Ordering::Release);
+        for (join_handle, _) in self.pool {
+            join_handle.join().unwrap();
+        }
+
+        // for (_, thread) in (*self.pool.load(Ordering::Acquire)).iter_mut() {
+        //     // thread.clean();
+        // }
+
+        // clean pool
+        // let pool_ptr = self.pool.swap(null_mut(), Ordering::AcqRel);
+        // drop(Box::from_raw(pool_ptr));
     }
 }

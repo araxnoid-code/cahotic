@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    ListCore, OutputTrait, PoolWait, TaskDependencies, TaskDependenciesTrait, TaskTrait,
+    ListCore, OutputTrait, PoolOutput, TaskDependencies, TaskDependenciesTrait, TaskTrait,
     TaskWithDependenciesTrait, ThreadPoolCore,
 };
 
@@ -32,7 +32,7 @@ where
         }
     }
 
-    pub fn spawn_task(&self, f: F) -> PoolWait<O> {
+    pub fn spawn_task(&self, f: F) -> PoolOutput<O> {
         self.list_core.spawn_task(f)
     }
 
@@ -47,12 +47,12 @@ where
         &self,
         task: FD,
         dependencies: &TaskDependencies<F, FD, O>,
-    ) -> PoolWait<O> {
+    ) -> PoolOutput<O> {
         self.list_core
             .spawn_task_with_dependencies(task, dependencies, None)
     }
 
-    pub fn join(self) {
+    pub fn join(mut self) {
         self.thread_pool_core.join();
     }
 }

@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolWait, TaskDependencies, TaskDependenciesCore, TaskTrait,
+    ExecTask, ListCore, OutputTrait, PoolOutput, TaskDependencies, TaskDependenciesCore, TaskTrait,
     TaskWithDependenciesTrait, WaitingTask,
 };
 
@@ -19,7 +19,7 @@ where
         task: FD,
         dependencies: &TaskDependencies<F, FD, O>,
         task_dependencies_core_ptr: Option<&'static TaskDependenciesCore<F, FD, O>>,
-    ) -> PoolWait<O> {
+    ) -> PoolOutput<O> {
         // main thread only focus in swap queue, base on swap start
         // update in_task handler
         self.in_task.fetch_add(1, Ordering::SeqCst);
@@ -119,7 +119,7 @@ where
             self.spawn_task_with_dependencies_normal(waiting_task_ptr);
         };
 
-        PoolWait {
+        PoolOutput {
             data_ptr: return_ptr,
         }
     }

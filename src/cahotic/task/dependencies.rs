@@ -53,7 +53,7 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub(crate) task_dependencies_ptr: &'static TaskDependenciesCore<F, FD, O>,
-    pub waiting_list: &'static Vec<PoolWait<O>>,
+    pub waiting_list: &'static Vec<PoolOutput<O>>,
 }
 
 impl<F, FD, O> TaskDependencies<F, FD, O>
@@ -70,13 +70,13 @@ where
     }
 }
 
-use crate::{OutputTrait, PoolWait, TaskTrait, WaitingTask};
+use crate::{OutputTrait, PoolOutput, TaskTrait, WaitingTask};
 
 pub trait TaskWithDependenciesTrait<O>
 where
     O: OutputTrait + 'static + Send,
 {
-    fn execute(&self, dependencies: &'static Vec<PoolWait<O>>) -> O;
+    fn execute(&self, dependencies: &'static Vec<PoolOutput<O>>) -> O;
 
     fn is_with_dependencies(&self) -> bool {
         true
