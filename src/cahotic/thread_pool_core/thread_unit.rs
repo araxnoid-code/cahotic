@@ -81,11 +81,9 @@ where
                 let output = Box::into_raw(Box::new(output));
                 task.waiting_return_ptr.store(output, Ordering::Release);
 
+                let _ = self.dependencies_handler(task);
+
                 // update counter
-                self.list_core.in_task.fetch_add(
-                    task.task_dependencies_core_ptr.len.load(Ordering::SeqCst),
-                    Ordering::SeqCst,
-                );
                 self.done_task.fetch_add(1, Ordering::SeqCst);
             }
         }

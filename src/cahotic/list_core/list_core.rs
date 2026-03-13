@@ -8,8 +8,8 @@ use std::{
 };
 
 use crate::{
-    ArrTaskDependenciesTrait, ExecTask, OutputTrait, PoolWait, TaskDependencies,
-    TaskDependenciesCore, TaskTrait, TaskWithDependenciesTrait, WaitingTask, cahotic::task,
+    ExecTask, OutputTrait, PoolWait, TaskDependencies, TaskDependenciesCore, TaskDependenciesTrait,
+    TaskTrait, TaskWithDependenciesTrait, WaitingTask, cahotic::task,
 };
 
 pub struct ListCore<F, FD, O>

@@ -83,18 +83,18 @@ where
     }
 }
 
-pub trait ArrTaskDependenciesTrait<F, O, const NF: usize>
+pub trait TaskDependenciesTrait<F, O>
 where
     F: TaskTrait<O> + Send + 'static,
     O: 'static + OutputTrait,
 {
-    fn task_list(self) -> [F; NF];
+    fn task_list(self) -> Vec<F>;
 }
 
-pub trait ArrTaskDependenciesWithDependenciesTrait<FD, O, const NF: usize>
+pub trait TaskDependenciesWithDependenciesTrait<FD, O>
 where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    fn task_list(self) -> [FD; NF];
+    fn task_list(self) -> Vec<FD>;
 }

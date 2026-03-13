@@ -61,7 +61,6 @@ where
                 (*pre_start_task).next.store(end_dep, Ordering::Release);
             }
         } else {
-            // saving end waiting task for spanning validation in thread pool later
             self.swap_end.store(end_dep, Ordering::Release);
         }
     }

@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    ArrTaskDependenciesWithDependenciesTrait, ExecTask, ListCore, OutputTrait, PoolWait,
-    TaskDependencies, TaskDependenciesCore, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
+    ExecTask, ListCore, OutputTrait, PoolWait, TaskDependencies, TaskDependenciesCore,
+    TaskDependenciesWithDependenciesTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
 };
 
 impl<F, FD, O> ListCore<F, FD, O>
@@ -14,23 +14,25 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn spawn_task_dependencies_with_dependencies<D, const NF: usize>(
+    pub fn spawn_task_dependencies_with_dependencies<D>(
         &self,
         dependencies: D,
         with_dependencies: &TaskDependencies<F, FD, O>,
     ) -> TaskDependencies<F, FD, O>
     where
-        D: ArrTaskDependenciesWithDependenciesTrait<FD, O, NF>,
+        D: TaskDependenciesWithDependenciesTrait<FD, O>,
     {
+        // task list
+        let task_list = dependencies.task_list();
         // create dependencies
         let task_dependencies_core_ptr: &'static TaskDependenciesCore<F, FD, O> =
-            Box::leak(Box::new(TaskDependenciesCore::init(NF)));
+            Box::leak(Box::new(TaskDependenciesCore::init(task_list.len())));
 
         // output
-        let mut waiting_output = Vec::with_capacity(NF);
+        let mut waiting_output = Vec::with_capacity(task_list.len());
 
         // task_dependencies
-        for task in dependencies.task_list() {
+        for task in task_list {
             // create waiting task
             if task.is_with_dependencies() {
                 let waiting_task = self.spawn_task_with_dependencies(

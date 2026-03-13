@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    ArrTaskDependenciesTrait, ExecTask, ListCore, OutputTrait, PoolWait, TaskDependencies,
-    TaskDependenciesCore, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
+    ExecTask, ListCore, OutputTrait, PoolWait, TaskDependencies, TaskDependenciesCore,
+    TaskDependenciesTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
 };
 
 impl<F, FD, O> ListCore<F, FD, O>
@@ -14,21 +14,20 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn spawn_dependencies<D, const NF: usize>(
-        &self,
-        dependencies: D,
-    ) -> TaskDependencies<F, FD, O>
+    pub fn spawn_dependencies<D>(&self, dependencies: D) -> TaskDependencies<F, FD, O>
     where
-        D: ArrTaskDependenciesTrait<F, O, NF>,
+        D: TaskDependenciesTrait<F, O>,
     {
+        let task_list = dependencies.task_list();
+
         // create dependencies
         let task_dependencies_core_ptr: &'static TaskDependenciesCore<F, FD, O> =
-            Box::leak(Box::new(TaskDependenciesCore::init(NF)));
+            Box::leak(Box::new(TaskDependenciesCore::init(task_list.len())));
 
         // output
-        let mut waiting_output = Vec::with_capacity(NF);
+        let mut waiting_output = Vec::with_capacity(task_list.len());
 
-        for task in dependencies.task_list() {
+        for task in task_list {
             // update in_task handler
             self.in_task.fetch_add(1, Ordering::SeqCst);
             // create return_ptr
