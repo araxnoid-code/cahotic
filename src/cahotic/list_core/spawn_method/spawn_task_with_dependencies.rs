@@ -32,12 +32,12 @@ where
             task: ExecTask::TaskWithDependencies(task),
             next: AtomicPtr::new(null_mut()),
             waiting_return_ptr: return_ptr,
-            task_dependencies_core_ptr: if let Some(ptr) = task_dependencies_core_ptr {
+            dependencies_core_ptr: if let Some(ptr) = task_dependencies_core_ptr {
                 ptr
             } else {
                 Box::leak(Box::new(TaskDependenciesCore::blank()))
             },
-            task_dependencies_ptr: dependencies.waiting_list,
+            output_dependencies_ptr: dependencies.waiting_list,
         };
 
         let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));

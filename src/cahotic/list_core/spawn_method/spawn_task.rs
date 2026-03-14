@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolOutput, TaskDependenciesCore, TaskTrait,
+    ExecTask, ListCore, OutputTrait, PoolOutput, PoolWait, TaskDependenciesCore, TaskTrait,
     TaskWithDependenciesTrait, WaitingTask,
 };
 
@@ -14,20 +14,22 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn spawn_task(&self, task: F) -> PoolOutput<O> {
-        // main thread only focus in swap queue, base on swap start
+    pub fn spawn_task(&self, task: F) -> PoolWait<F, FD, O> {
         // update in_task handler
         self.in_task.fetch_add(1, Ordering::SeqCst);
         // create return_ptr
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
+        // dependencies
+        let dependencies_core_ptr = Box::leak(Box::new(TaskDependenciesCore::blank()));
+        let output_dependencies_ptr = Box::leak(Box::new(Vec::new()));
         // create waiting task
         let waiting_task = WaitingTask {
             id: self.id_counter.fetch_add(1, Ordering::Release),
             task: ExecTask::Task(task),
             next: AtomicPtr::new(null_mut()),
             waiting_return_ptr: return_ptr,
-            task_dependencies_core_ptr: Box::leak(Box::new(TaskDependenciesCore::blank())),
-            task_dependencies_ptr: Box::leak(Box::new(Vec::new())),
+            dependencies_core_ptr,
+            output_dependencies_ptr,
         };
 
         let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
@@ -45,12 +47,14 @@ where
             self.swap_end.store(waiting_task_ptr, Ordering::Release);
         }
 
-        // let pool_out = PoolOutput {
-        //     data_ptr: return_ptr,
-        // };
-
-        PoolOutput {
+        let pool_out = PoolOutput {
             data_ptr: return_ptr,
+        };
+
+        PoolWait {
+            output: pool_out,
+            dependencies_core_ptr,
+            output_dependencies_ptr,
         }
     }
 

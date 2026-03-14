@@ -11,8 +11,9 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    output: PoolOutput<O>,
-    dependencies: &'static TaskDependenciesCore<F, FD, O>,
+    pub(crate) output: PoolOutput<O>,
+    pub(crate) dependencies_core_ptr: &'static TaskDependenciesCore<F, FD, O>,
+    pub(crate) output_dependencies_ptr: &'static Vec<PoolOutput<O>>,
 }
 
 impl<F, FD, O> PoolWait<F, FD, O>

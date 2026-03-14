@@ -39,8 +39,8 @@ where
                 task: ExecTask::Task(task),
                 next: AtomicPtr::new(null_mut()),
                 waiting_return_ptr: return_ptr,
-                task_dependencies_core_ptr,
-                task_dependencies_ptr: Box::leak(Box::new(vec![])),
+                dependencies_core_ptr: task_dependencies_core_ptr,
+                output_dependencies_ptr: Box::leak(Box::new(vec![])),
             };
 
             let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));

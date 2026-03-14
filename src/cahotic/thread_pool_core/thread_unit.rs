@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     hint::spin_loop,
     os::fd,
     ptr::{null, null_mut},
@@ -10,14 +11,15 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolOutput, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
+    ExecTask, ListCore, OutputTrait, PoolOutput, TaskDependenciesCore, TaskTrait,
+    TaskWithDependenciesTrait, WaitingTask,
 };
 
 pub struct ThreadUnit<F, FD, O>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send,
+    O: 'static + OutputTrait + Send + Debug,
 {
     // // unique
     pub(crate) id: usize,
@@ -35,7 +37,7 @@ impl<F, FD, O> ThreadUnit<F, FD, O>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send,
+    O: 'static + OutputTrait + Send + Debug,
 {
     pub fn running(&self) {
         // main loop
@@ -63,32 +65,58 @@ where
                 continue;
             };
 
+            // println!(
+            //     "start prim: {:?}\nend prim: {:?}\nstart swap: {:?}\nend swap: {:?}",
+            //     self.list_core.start,
+            //     self.list_core.end,
+            //     self.list_core.swap_start,
+            //     self.list_core.swap_end
+            // );
+
             // execute
             unsafe {
-                let task = Box::from_raw(task);
+                let box_task = Box::from_raw(task);
 
-                let output = match &task.task {
-                    ExecTask::Task(f) => f.execute(),
-                    ExecTask::TaskWithDependencies(f) => f.execute(task.task_dependencies_ptr),
-                    _ => panic!(),
-                };
+                if let ExecTask::Drop(_) = &box_task.task {
+                    if let Ok(_) = self.list_core.drop_pool_sch(*box_task) {
+                        // update counter
+                        self.done_task.fetch_add(1, Ordering::SeqCst);
+                    }
+                } else {
+                    let output = match &box_task.task {
+                        ExecTask::Task(f) => f.execute(),
+                        ExecTask::TaskWithDependencies(f) => {
+                            f.execute(box_task.output_dependencies_ptr)
+                        }
+                        ExecTask::Output(o) => {
+                            panic!(
+                                // "{}, what the fuck? => {:?} with task id {} then {}",
+                                // self.id,
+                                // o,
+                                // self.id,
+                                // task.is_null()
+                            )
+                        }
+                        ExecTask::Drop(_) => panic!(),
+                    };
 
-                let output = Box::into_raw(Box::new(output));
-                task.waiting_return_ptr.store(output, Ordering::Release);
+                    let output = Box::into_raw(Box::new(output));
+                    box_task.waiting_return_ptr.store(output, Ordering::Release);
 
-                let _ = self.dependencies_handler(task);
+                    let _ = self.dependencies_handler(box_task);
 
-                // update counter
-                self.done_task.fetch_add(1, Ordering::SeqCst);
+                    // update counter
+                    self.done_task.fetch_add(1, Ordering::SeqCst);
+                }
             }
         }
     }
 
     fn dependencies_handler(&self, task: Box<WaitingTask<F, FD, O>>) -> Option<()> {
-        if task.task_dependencies_core_ptr.status {
+        if task.dependencies_core_ptr.status {
             // update counter
             let counter = task
-                .task_dependencies_core_ptr
+                .dependencies_core_ptr
                 .counter
                 .fetch_sub(1, Ordering::Release);
 
@@ -97,21 +125,16 @@ where
             }
 
             // update done flag
-            task.task_dependencies_core_ptr
+            task.dependencies_core_ptr
                 .done
                 .store(true, Ordering::Release);
 
-            let check_task = task
-                .task_dependencies_core_ptr
-                .start
-                .load(Ordering::Acquire);
+            let check_task = task.dependencies_core_ptr.start.load(Ordering::Acquire);
             if !check_task.is_null() {
                 // CAS RETRY LOOP
                 let start_waiting_task = loop {
-                    let status = task.task_dependencies_core_ptr.start.compare_exchange(
-                        task.task_dependencies_core_ptr
-                            .start
-                            .load(Ordering::Acquire),
+                    let status = task.dependencies_core_ptr.start.compare_exchange(
+                        task.dependencies_core_ptr.start.load(Ordering::Acquire),
                         null_mut(),
                         Ordering::AcqRel,
                         Ordering::Acquire,
@@ -126,7 +149,7 @@ where
                 };
 
                 let end_waiting_task = task
-                    .task_dependencies_core_ptr
+                    .dependencies_core_ptr
                     .end
                     .swap(null_mut(), Ordering::Acquire);
 

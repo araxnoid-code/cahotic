@@ -54,18 +54,17 @@ where
     }
 
     pub fn get_waiting_task_from_primary_stack(&self) -> Result<*mut WaitingTask<F, FD, O>, &str> {
-        let start_waiting_task = self.start.load(Ordering::Acquire);
-
         unsafe {
             let waiting_task = self.end.load(Ordering::Acquire);
             if waiting_task.is_null() {
                 return Err("Primary list empty");
             }
+            let start_waiting_task = self.start.load(Ordering::Acquire);
 
             let next = (*waiting_task).next.load(Ordering::Acquire);
             if next.is_null() {
                 if waiting_task != start_waiting_task {
-                    return Err("Failed get task");
+                    return Err("Failed get task, not same");
                 }
             }
 

@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     hint::spin_loop,
     ptr::null_mut,
     sync::{
@@ -15,7 +16,7 @@ pub struct ThreadPoolCore<F, FD, O, const N: usize>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send,
+    O: 'static + OutputTrait + Send + Debug,
 {
     // main thread pool
     pub(crate) pool: Vec<(JoinHandle<()>, Arc<ThreadUnit<F, FD, O>>)>,
@@ -33,7 +34,7 @@ impl<F, FD, O, const N: usize> ThreadPoolCore<F, FD, O, N>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
-    O: OutputTrait + Send,
+    O: OutputTrait + Send + Debug,
 {
     pub fn init(list_core: Arc<ListCore<F, FD, O>>) -> ThreadPoolCore<F, FD, O, N> {
         // handler
@@ -99,6 +100,11 @@ where
     pub fn join(self) {
         // check, all task done
         loop {
+            // println!(
+            //     "{}/{}",
+            //     self.list_core.in_task.load(Ordering::SeqCst),
+            //     self.done_task.load(Ordering::SeqCst)
+            // );
             if self.list_core.in_task.load(Ordering::SeqCst)
                 <= self.done_task.load(Ordering::SeqCst)
             {

@@ -1,15 +1,15 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use crate::{
-    ListCore, OutputTrait, PoolOutput, TaskDependencies, TaskDependenciesTrait, TaskTrait,
-    TaskWithDependenciesTrait, ThreadPoolCore,
+    ListCore, OutputTrait, PoolOutput, PoolWait, TaskDependencies, TaskDependenciesTrait,
+    TaskTrait, TaskWithDependenciesTrait, ThreadPoolCore,
 };
 
 pub struct Cahotic<F, FD, O, const N: usize>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send + Send,
+    O: 'static + OutputTrait + Send + Send + Debug,
 {
     // List Core
     list_core: Arc<ListCore<F, FD, O>>,
@@ -21,7 +21,7 @@ impl<F, FD, O, const N: usize> Cahotic<F, FD, O, N>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send,
+    O: 'static + OutputTrait + Send + Debug,
 {
     pub fn init() -> Cahotic<F, FD, O, N> {
         let list_core = Arc::new(ListCore::<F, FD, O>::init());
@@ -32,8 +32,12 @@ where
         }
     }
 
-    pub fn spawn_task(&self, f: F) -> PoolOutput<O> {
+    pub fn spawn_task(&self, f: F) -> PoolWait<F, FD, O> {
         self.list_core.spawn_task(f)
+    }
+
+    pub fn drop_pool(&self, pool_wait: PoolWait<F, FD, O>) {
+        self.list_core.drop_pool(pool_wait);
     }
 
     pub fn spwan_dependencies<D>(&self, dependencies: D) -> TaskDependencies<F, FD, O>
@@ -52,7 +56,7 @@ where
             .spawn_task_with_dependencies(task, dependencies, None)
     }
 
-    pub fn join(mut self) {
+    pub fn join(self) {
         self.thread_pool_core.join();
     }
 }
