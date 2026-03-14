@@ -8,6 +8,7 @@ use std::{
         mpsc,
     },
     thread::{self, JoinHandle, sleep, spawn},
+    time::Duration,
 };
 
 use crate::{ListCore, OutputTrait, TaskTrait, TaskWithDependenciesTrait, ThreadUnit, WaitingTask};
@@ -100,6 +101,36 @@ where
     pub fn join(self) {
         // check, all task done
         loop {
+            // println!(
+            //     "start prim: {:?}\nend prim: {:?}\nstart swap: {:?}\nend swap: {:?}\n",
+            //     self.list_core.start,
+            //     self.list_core.end,
+            //     self.list_core.swap_start,
+            //     self.list_core.swap_end
+            // );
+
+            // println!(
+            //     "swap: {:?}\nprim: {:?}\n",
+            //     self.list_core.is_swap_list_empty(),
+            //     self.list_core.is_primary_list_empty(),
+            // );
+
+            // if !self.list_core.start.load(Ordering::Acquire).is_null() {
+            //     unsafe {
+            //         println!(
+            //             "start {}\nend {}",
+            //             (*self.list_core.start.load(Ordering::Acquire)).id,
+            //             (*self.list_core.start.load(Ordering::Acquire)).id
+            //         )
+            //     }
+            // }
+            // println!(
+            //     "swap: {:?}\nprim: {:?}\n",
+            //     self.list_core.is_swap_list_empty(),
+            //     self.list_core.is_primary_list_empty(),
+            // );
+
+            // sleep(Duration::from_millis(50));
             // println!(
             //     "{}/{}",
             //     self.list_core.in_task.load(Ordering::SeqCst),

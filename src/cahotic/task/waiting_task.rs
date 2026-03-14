@@ -25,7 +25,7 @@ where
     pub(crate) id: u64,
     pub(crate) task: ExecTask<F, FD, O>,
     pub(crate) next: AtomicPtr<WaitingTask<F, FD, O>>,
-    pub(crate) waiting_return_ptr: &'static AtomicPtr<O>,
+    pub(crate) return_ptr: &'static AtomicPtr<O>,
     // dependencies
     pub(crate) dependencies_core_ptr: &'static TaskDependenciesCore<F, FD, O>, // will be shared. to Waiting<O> and WaitingTask<F, O>
     pub(crate) output_dependencies_ptr: &'static Vec<PoolOutput<O>>,

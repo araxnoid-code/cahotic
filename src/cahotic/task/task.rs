@@ -12,4 +12,5 @@ where
     TaskWithDependencies(FD),
     Drop(DropSchedule<F, FD, O>),
     Output(O),
+    None,
 }

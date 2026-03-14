@@ -38,7 +38,7 @@ where
                 id: self.id_counter.fetch_add(1, Ordering::Release),
                 task: ExecTask::Task(task),
                 next: AtomicPtr::new(null_mut()),
-                waiting_return_ptr: return_ptr,
+                return_ptr,
                 dependencies_core_ptr: task_dependencies_core_ptr,
                 output_dependencies_ptr: Box::leak(Box::new(vec![])),
             };

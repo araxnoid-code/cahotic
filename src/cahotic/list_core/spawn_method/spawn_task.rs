@@ -27,7 +27,7 @@ where
             id: self.id_counter.fetch_add(1, Ordering::Release),
             task: ExecTask::Task(task),
             next: AtomicPtr::new(null_mut()),
-            waiting_return_ptr: return_ptr,
+            return_ptr,
             dependencies_core_ptr,
             output_dependencies_ptr,
         };
@@ -36,15 +36,10 @@ where
 
         // swap start with new waiting task
         let pre_start_task = self.swap_start.swap(waiting_task_ptr, Ordering::AcqRel);
-        if !pre_start_task.is_null() {
-            unsafe {
-                (*pre_start_task)
-                    .next
-                    .store(waiting_task_ptr, Ordering::Release);
-            }
-        } else {
-            // saving end waiting task for spanning validation in thread pool later
-            self.swap_end.store(waiting_task_ptr, Ordering::Release);
+        unsafe {
+            (*pre_start_task)
+                .next
+                .store(waiting_task_ptr, Ordering::Release);
         }
 
         let pool_out = PoolOutput {

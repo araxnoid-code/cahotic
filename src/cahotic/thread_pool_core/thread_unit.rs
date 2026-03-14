@@ -7,7 +7,8 @@ use std::{
         Arc,
         atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, AtomicUsize, Ordering},
     },
-    thread::{self, JoinHandle},
+    thread::{self, JoinHandle, sleep},
+    time::Duration,
 };
 
 use crate::{
@@ -42,6 +43,7 @@ where
     pub fn running(&self) {
         // main loop
         loop {
+            // sleep(Duration::from_millis(25 * self.id as u64 + 1));
             if self.join_flag.load(Ordering::Acquire) {
                 break;
             }
@@ -62,6 +64,7 @@ where
             let task = if let Ok(task) = self.list_core.get_waiting_task_from_primary_stack() {
                 task
             } else {
+                spin_loop();
                 continue;
             };
 
@@ -75,14 +78,17 @@ where
 
             // execute
             unsafe {
-                let box_task = Box::from_raw(task);
-
-                if let ExecTask::Drop(_) = &box_task.task {
-                    if let Ok(_) = self.list_core.drop_pool_sch(*box_task) {
+                if let ExecTask::Drop(_) = (*task).task {
+                    if self.id == 2 {
+                        println!("get task id {}", (*task).id);
+                    }
+                    if let Ok(_) = self.list_core.drop_pool_sch(task) {
                         // update counter
                         self.done_task.fetch_add(1, Ordering::SeqCst);
                     }
+                    spin_loop();
                 } else {
+                    let box_task = Box::from_raw(task);
                     let output = match &box_task.task {
                         ExecTask::Task(f) => f.execute(),
                         ExecTask::TaskWithDependencies(f) => {
@@ -98,15 +104,17 @@ where
                             )
                         }
                         ExecTask::Drop(_) => panic!(),
+                        ExecTask::None => panic!(),
                     };
 
                     let output = Box::into_raw(Box::new(output));
-                    box_task.waiting_return_ptr.store(output, Ordering::Release);
+                    box_task.return_ptr.store(output, Ordering::Release);
 
                     let _ = self.dependencies_handler(box_task);
 
                     // update counter
                     self.done_task.fetch_add(1, Ordering::SeqCst);
+                    spin_loop();
                 }
             }
         }

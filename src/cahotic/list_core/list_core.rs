@@ -38,9 +38,25 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub fn init() -> ListCore<F, FD, O> {
+        // dummy
+        let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
+        let dependencies_core_ptr = Box::leak(Box::new(TaskDependenciesCore::<F, FD, O>::blank()));
+        let output_dependencies_ptr = Box::leak(Box::new(Vec::new()));
+        // create waiting task
+        let waiting_task = WaitingTask {
+            id: 0,
+            task: ExecTask::None,
+            next: AtomicPtr::new(null_mut()),
+            return_ptr,
+            dependencies_core_ptr,
+            output_dependencies_ptr,
+        };
+
+        let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
+
         Self {
             // primary Stack
-            id_counter: AtomicU64::new(0),
+            id_counter: AtomicU64::new(1),
             start: AtomicPtr::new(ptr::null_mut()),
             end: AtomicPtr::new(ptr::null_mut()),
 
@@ -48,8 +64,8 @@ where
             in_task: Arc::new(AtomicU64::new(0)),
 
             // Swap Stack
-            swap_start: AtomicPtr::new(ptr::null_mut()),
-            swap_end: AtomicPtr::new(ptr::null_mut()),
+            swap_start: AtomicPtr::new(waiting_task_ptr),
+            swap_end: AtomicPtr::new(waiting_task_ptr),
         }
     }
 
@@ -87,22 +103,28 @@ where
     }
 
     pub fn is_swap_list_empty(&self) -> bool {
-        self.swap_end.load(Ordering::Acquire).is_null()
+        unsafe {
+            (*self.swap_end.load(Ordering::Acquire))
+                .next
+                .load(Ordering::Acquire)
+                .is_null()
+        }
     }
 
     pub fn swap_to_primary(&self) -> Result<(), &str> {
-        // if !self.end.load(Ordering::Acquire).is_null() {
-        //     return Err("PRIMARY LIST NOT EMPTY");
-        // }
+        unsafe {
+            let dummy_end = self.swap_end.load(Ordering::Acquire);
 
-        let swap_end = self.swap_end.swap(null_mut(), Ordering::AcqRel);
-        if !swap_end.is_null() {
-            let swap_start = self.swap_start.swap(null_mut(), Ordering::AcqRel);
-            self.start.store(swap_start, Ordering::Release);
-            self.end.store(swap_end, Ordering::Release);
-            Ok(())
-        } else {
-            Err("SWAP LIST EMPTY")
+            let dummy_next = (*dummy_end).next.swap(null_mut(), Ordering::AcqRel);
+
+            if !dummy_next.is_null() {
+                let swap_start = self.swap_start.swap(dummy_end, Ordering::AcqRel);
+                self.start.store(swap_start, Ordering::Release);
+                self.end.store(dummy_next, Ordering::Release);
+                Ok(())
+            } else {
+                Err("SWAP LIST EMPTY")
+            }
         }
     }
 }

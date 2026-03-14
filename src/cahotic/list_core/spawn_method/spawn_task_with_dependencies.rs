@@ -31,7 +31,7 @@ where
             id: self.id_counter.fetch_add(1, Ordering::Release),
             task: ExecTask::TaskWithDependencies(task),
             next: AtomicPtr::new(null_mut()),
-            waiting_return_ptr: return_ptr,
+            return_ptr,
             dependencies_core_ptr: if let Some(ptr) = task_dependencies_core_ptr {
                 ptr
             } else {

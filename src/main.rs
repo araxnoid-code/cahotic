@@ -54,12 +54,12 @@ impl TaskDependenciesTrait<MyTask, MyOutput> for Vec<MyTask> {
 fn main() {
     // for i in 0..100 {
     // println!("iter: {}", i);
-    let thread_pool: Cahotic<MyTask, MyTask, MyOutput, 8> = Cahotic::init();
+    let thread_pool: Cahotic<MyTask, MyTask, MyOutput, 3> = Cahotic::init();
 
     for i in 0..2 {
         let pool = thread_pool.spawn_task(MyTask::Exec(|| {
             sleep(Duration::from_millis(1000));
-            println!("done");
+            // println!("done");
             MyOutput::Number(10)
         }));
         thread_pool.drop_pool(pool);
