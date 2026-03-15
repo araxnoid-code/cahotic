@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use crate::{OutputTrait, PoolWait, TaskTrait, TaskWithDependenciesTrait};
 
 pub struct DropSchedule<F, FD, O>

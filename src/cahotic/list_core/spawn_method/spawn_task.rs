@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolOutput, PoolWait, TaskDependenciesCore, TaskTrait,
-    TaskWithDependenciesTrait, WaitingTask,
+    ExecTask, ListCore, OutputTrait, PoolOutput, PoolWait, TaskTrait, TaskWithDependenciesTrait,
+    WaitingTask,
 };
 
 impl<F, FD, O> ListCore<F, FD, O>

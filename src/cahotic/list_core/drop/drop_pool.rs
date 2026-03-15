@@ -1,13 +1,11 @@
 use std::{
-    hint::spin_loop,
     ptr::null_mut,
     sync::atomic::{AtomicPtr, Ordering},
 };
 
 use crate::{
-    DropSchedule, ExecTask, ListCore, OutputTrait, PoolOutput, PoolWait, PoolWaitStatus,
-    TaskDependenciesCore, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
-    cahotic::list_core::drop::drop_sch,
+    DropSchedule, ExecTask, ListCore, OutputTrait, PoolWait, TaskTrait, TaskWithDependenciesTrait,
+    WaitingTask,
 };
 
 impl<F, FD, O> ListCore<F, FD, O>

@@ -1,5 +1,4 @@
 use std::{
-    hint::spin_loop,
     ptr::{self, null_mut},
     sync::{
         Arc,
@@ -7,10 +6,7 @@ use std::{
     },
 };
 
-use crate::{
-    ExecTask, OutputTrait, PoolOutput, TaskDependencies, TaskDependenciesCore,
-    TaskDependenciesTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask, cahotic::task,
-};
+use crate::{ExecTask, OutputTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask};
 
 pub struct ListCore<F, FD, O>
 where
