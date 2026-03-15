@@ -68,6 +68,12 @@ where
                 continue;
             };
 
+            unsafe {
+                if (*task).id == 4 {
+                    println!("Thread {:?} mengambil Task {}", self.id, (*task).id);
+                }
+            }
+
             // println!(
             //     "start prim: {:?}\nend prim: {:?}\nstart swap: {:?}\nend swap: {:?}",
             //     self.list_core.start,
@@ -79,9 +85,9 @@ where
             // execute
             unsafe {
                 if let ExecTask::Drop(_) = (*task).task {
-                    if self.id == 2 {
-                        println!("get task id {}", (*task).id);
-                    }
+                    // if self.id == 2 {
+                    //     println!("get task id {}", (*task).id);
+                    // }
                     if let Ok(_) = self.list_core.drop_pool_sch(task) {
                         // update counter
                         self.done_task.fetch_add(1, Ordering::SeqCst);

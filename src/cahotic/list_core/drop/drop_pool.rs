@@ -78,6 +78,10 @@ where
                     .next
                     .store(waiting_task_ptr, Ordering::Release);
 
+                if (*waiting_task_ptr).id == 4 {
+                    println!("task 4 dimasukkan kembali")
+                }
+
                 Err(())
             } else {
                 panic!("imposible")

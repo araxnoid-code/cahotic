@@ -29,6 +29,7 @@ where
 
     // list core
     list_core: Arc<ListCore<F, FD, O>>,
+    // global thread pool list
 }
 
 impl<F, FD, O, const N: usize> ThreadPoolCore<F, FD, O, N>
