@@ -22,8 +22,12 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send + Debug,
 {
+    // thread
     // // unique
     pub(crate) id: usize,
+    // // drop-stack
+    pub(crate) drop_stack: Vec<*mut WaitingTask<F, FD, O>>,
+
     // share
     // // thread_pool
     pub(crate) join_flag: Arc<AtomicBool>,
@@ -40,10 +44,9 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send + Debug,
 {
-    pub fn running(&self) {
+    pub fn running(&mut self) {
         // main loop
         loop {
-            // sleep(Duration::from_millis(25 * self.id as u64 + 1));
             if self.join_flag.load(Ordering::Acquire) {
                 break;
             }
@@ -52,13 +55,19 @@ where
             let is_reprt = self.reprt_handler.swap(false, Ordering::AcqRel);
             if is_reprt {
                 if self.list_core.is_primary_list_empty() {
-                    if let Err(_) = self.list_core.swap_to_primary() {
-                        //
-                    }
+                    if let Err(_) = self.list_core.swap_to_primary() {}
                 }
 
                 (*self.reprt_handler).store(true, Ordering::Release);
                 spin_loop();
+            }
+
+            if let Some(drop_waiting_task) = self.drop_stack.pop() {
+                if let Err(waiting_task) = self.list_core.drop_pool_sch(drop_waiting_task) {
+                    self.drop_stack.push(waiting_task);
+                } else {
+                    self.done_task.fetch_add(1, Ordering::Release);
+                }
             }
 
             let task = if let Ok(task) = self.list_core.get_waiting_task_from_primary_stack() {
@@ -68,30 +77,15 @@ where
                 continue;
             };
 
-            unsafe {
-                if (*task).id == 4 {
-                    println!("Thread {:?} mengambil Task {}", self.id, (*task).id);
-                }
-            }
-
-            // println!(
-            //     "start prim: {:?}\nend prim: {:?}\nstart swap: {:?}\nend swap: {:?}",
-            //     self.list_core.start,
-            //     self.list_core.end,
-            //     self.list_core.swap_start,
-            //     self.list_core.swap_end
-            // );
-
             // execute
             unsafe {
                 if let ExecTask::Drop(_) = (*task).task {
-                    // if self.id == 2 {
-                    //     println!("get task id {}", (*task).id);
-                    // }
-                    if let Ok(_) = self.list_core.drop_pool_sch(task) {
-                        // update counter
-                        self.done_task.fetch_add(1, Ordering::SeqCst);
+                    if let Err(waiting_task) = self.list_core.drop_pool_sch(task) {
+                        self.drop_stack.push(waiting_task);
+                    } else {
+                        self.done_task.fetch_add(1, Ordering::Release);
                     }
+
                     spin_loop();
                 } else {
                     let box_task = Box::from_raw(task);
@@ -101,13 +95,7 @@ where
                             f.execute(box_task.output_dependencies_ptr)
                         }
                         ExecTask::Output(o) => {
-                            panic!(
-                                // "{}, what the fuck? => {:?} with task id {} then {}",
-                                // self.id,
-                                // o,
-                                // self.id,
-                                // task.is_null()
-                            )
+                            panic!()
                         }
                         ExecTask::Drop(_) => panic!(),
                         ExecTask::None => panic!(),

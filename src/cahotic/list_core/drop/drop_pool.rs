@@ -18,71 +18,44 @@ where
     pub(crate) fn drop_pool_sch(
         &self,
         waiting_task_ptr: *mut WaitingTask<F, FD, O>,
-    ) -> Result<(), ()> {
+    ) -> Result<(), *mut WaitingTask<F, FD, O>> {
         unsafe {
             if let ExecTask::Drop(drop_sch) = &(*waiting_task_ptr).task {
-                // if let Some(_) = drop_sch.pool_wait.get() {
-                //     println!("drop {}", (*waiting_task_ptr).id);
-                //     // drop pool
-                //     drop(Box::from_raw(
-                //         drop_sch.pool_wait.output.data_ptr.load(Ordering::Acquire),
-                //     ));
-                //     drop(Box::from_raw(
-                //         drop_sch.pool_wait.output_dependencies_ptr as *const Vec<PoolOutput<O>>
-                //             as *mut Vec<PoolOutput<O>>,
-                //     ));
-                //     drop(Box::from_raw(
-                //         drop_sch.pool_wait.dependencies_core_ptr
-                //             as *const TaskDependenciesCore<F, FD, O>
-                //             as *mut TaskDependenciesCore<F, FD, O>,
-                //     ));
+                if let Some(_) = drop_sch.pool_wait.get() {
+                    // drop pool
+                    drop(Box::from_raw(
+                        drop_sch.pool_wait.output.data_ptr.load(Ordering::Acquire),
+                    ));
+                    drop(Box::from_raw(
+                        drop_sch.pool_wait.output_dependencies_ptr as *const Vec<PoolOutput<O>>
+                            as *mut Vec<PoolOutput<O>>,
+                    ));
+                    drop(Box::from_raw(
+                        drop_sch.pool_wait.dependencies_core_ptr
+                            as *const TaskDependenciesCore<F, FD, O>
+                            as *mut TaskDependenciesCore<F, FD, O>,
+                    ));
 
-                //     // drop task
-                //     let task = Box::from_raw(waiting_task_ptr);
-                //     drop(Box::from_raw(
-                //         task.dependencies_core_ptr as *const TaskDependenciesCore<F, FD, O>
-                //             as *mut TaskDependenciesCore<F, FD, O>,
-                //     ));
+                    // drop task
+                    let task = Box::from_raw(waiting_task_ptr);
+                    drop(Box::from_raw(
+                        task.dependencies_core_ptr as *const TaskDependenciesCore<F, FD, O>
+                            as *mut TaskDependenciesCore<F, FD, O>,
+                    ));
 
-                //     drop(Box::from_raw(
-                //         task.output_dependencies_ptr as *const Vec<PoolOutput<O>>
-                //             as *mut Vec<PoolOutput<O>>,
-                //     ));
+                    drop(Box::from_raw(
+                        task.output_dependencies_ptr as *const Vec<PoolOutput<O>>
+                            as *mut Vec<PoolOutput<O>>,
+                    ));
 
-                //     drop(Box::from_raw(
-                //         task.return_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
-                //     ));
+                    drop(Box::from_raw(
+                        task.return_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
+                    ));
 
-                //     Ok(())
-                // } else {
-                //     (*waiting_task_ptr)
-                //         .next
-                //         .store(null_mut(), Ordering::Release);
-
-                //     // swap start with new waiting task
-                //     let pre_start_task = self.swap_start.swap(waiting_task_ptr, Ordering::AcqRel);
-                //     (*pre_start_task)
-                //         .next
-                //         .store(waiting_task_ptr, Ordering::Release);
-
-                //     Err(())
-                // }
-
-                (*waiting_task_ptr)
-                    .next
-                    .store(null_mut(), Ordering::Release);
-
-                // swap start with new waiting task
-                let pre_start_task = self.swap_start.swap(waiting_task_ptr, Ordering::AcqRel);
-                (*pre_start_task)
-                    .next
-                    .store(waiting_task_ptr, Ordering::Release);
-
-                if (*waiting_task_ptr).id == 4 {
-                    println!("task 4 dimasukkan kembali")
+                    Ok(())
+                } else {
+                    Err(waiting_task_ptr)
                 }
-
-                Err(())
             } else {
                 panic!("imposible")
             }

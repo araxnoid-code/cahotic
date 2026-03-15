@@ -19,9 +19,9 @@ where
 
 impl<F, FD, O, const N: usize> Cahotic<F, FD, O, N>
 where
-    F: TaskTrait<O> + 'static + Send,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send + Debug,
+    F: TaskTrait<O> + 'static + Send + Sync,
+    FD: TaskWithDependenciesTrait<O> + Send + 'static + Sync,
+    O: 'static + OutputTrait + Send + Debug + Sync,
 {
     pub fn init() -> Cahotic<F, FD, O, N> {
         let list_core = Arc::new(ListCore::<F, FD, O>::init());

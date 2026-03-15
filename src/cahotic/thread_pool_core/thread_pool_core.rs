@@ -20,7 +20,7 @@ where
     O: 'static + OutputTrait + Send + Debug,
 {
     // main thread pool
-    pub(crate) pool: Vec<(JoinHandle<()>, Arc<ThreadUnit<F, FD, O>>)>,
+    pub(crate) pool: Vec<JoinHandle<()>>,
 
     // handler
     pub(crate) reprt_handler: Arc<AtomicBool>,
@@ -34,9 +34,9 @@ where
 
 impl<F, FD, O, const N: usize> ThreadPoolCore<F, FD, O, N>
 where
-    F: TaskTrait<O> + 'static + Send,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
-    O: OutputTrait + Send + Debug,
+    F: TaskTrait<O> + 'static + Send + Sync,
+    FD: TaskWithDependenciesTrait<O> + Send + 'static + Sync,
+    O: OutputTrait + Send + Debug + Sync,
 {
     pub fn init(list_core: Arc<ListCore<F, FD, O>>) -> ThreadPoolCore<F, FD, O, N> {
         // handler
@@ -51,10 +51,10 @@ where
         let block = Arc::new(AtomicBool::new(false));
 
         // MPSC
-        let (tx, rx) = mpsc::channel();
+        // let (tx, rx) = mpsc::channel();
         for id in 0..N {
             // MPSC
-            let tx_clone = tx.clone();
+            // let tx_clone = tx.clone();
 
             // clone
             let reprt_handler_clone = reprt_handler.clone();
@@ -64,15 +64,16 @@ where
             let block_clone = block.clone();
 
             let spawn = spawn(move || {
-                let thread_unit = Arc::new(ThreadUnit {
+                let mut thread_unit = ThreadUnit {
                     id,
+                    drop_stack: Vec::with_capacity(256),
                     done_task: done_task_clone,
                     join_flag: join_flag_clone,
                     list_core: list_core_clone,
                     reprt_handler: reprt_handler_clone,
-                });
+                };
 
-                tx_clone.send(thread_unit.clone()).unwrap();
+                // tx_clone.send(thread_unit.clone()).unwrap();
 
                 while !block_clone.load(Ordering::Acquire) {
                     spin_loop();
@@ -83,9 +84,9 @@ where
             });
 
             // RX from MPSC
-            let shared_thread = rx.recv().unwrap();
+            // let shared_thread = rx.recv().unwrap();
             // saving
-            pool.push((spawn, shared_thread));
+            pool.push(spawn);
         }
 
         block.store(true, Ordering::Release);
@@ -147,7 +148,7 @@ where
 
         // join
         self.join_flag.store(true, Ordering::Release);
-        for (join_handle, _) in self.pool {
+        for join_handle in self.pool {
             join_handle.join().unwrap();
         }
 
