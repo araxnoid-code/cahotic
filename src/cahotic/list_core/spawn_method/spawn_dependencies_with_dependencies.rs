@@ -40,10 +40,10 @@ where
                     with_dependencies,
                     Some(task_dependencies_core_ptr),
                 );
-                waiting_output.push(waiting_task);
+                // waiting_output.push(waiting_task);
             } else {
                 let waiting_task = self.spawn_task_fd(task, Some(task_dependencies_core_ptr));
-                waiting_output.push(waiting_task);
+                // waiting_output.push(waiting_task);
             }
         }
 
@@ -71,12 +71,8 @@ where
             task: ExecTask::TaskWithDependencies(task),
             next: AtomicPtr::new(null_mut()),
             return_ptr,
-            dependencies_core_ptr: if let Some(ptr) = task_dependencies_core_ptr {
-                ptr
-            } else {
-                Box::leak(Box::new(TaskDependenciesCore::blank()))
-            },
-            output_dependencies_ptr: Box::leak(Box::new(Vec::new())),
+            dependencies_core_ptr: task_dependencies_core_ptr,
+            output_dependencies_ptr: None,
         };
 
         let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));

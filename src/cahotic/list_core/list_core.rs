@@ -40,16 +40,16 @@ where
     pub fn init() -> ListCore<F, FD, O> {
         // dummy
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
-        let dependencies_core_ptr = Box::leak(Box::new(TaskDependenciesCore::<F, FD, O>::blank()));
-        let output_dependencies_ptr = Box::leak(Box::new(Vec::new()));
+        // let dependencies_core_ptr = Box::leak(Box::new(TaskDependenciesCore::<F, FD, O>::blank()));
+        // let output_dependencies_ptr = Box::leak(Box::new(Vec::new()));
         // create waiting task
         let waiting_task = WaitingTask {
             id: 0,
             task: ExecTask::None,
             next: AtomicPtr::new(null_mut()),
             return_ptr,
-            dependencies_core_ptr,
-            output_dependencies_ptr,
+            dependencies_core_ptr: None,
+            output_dependencies_ptr: None,
         };
 
         let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));

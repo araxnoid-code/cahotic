@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::{DropSchedule, OutputTrait, TaskTrait, TaskWithDependenciesTrait};
+use crate::{DropSchedule, OutputTrait, TaskDependencies, TaskTrait, TaskWithDependenciesTrait};
 
 pub enum ExecTask<F, FD, O>
 where
@@ -10,7 +10,8 @@ where
 {
     Task(F),
     TaskWithDependencies(FD),
-    Drop(DropSchedule<F, FD, O>),
+    DropPool(DropSchedule<F, FD, O>),
+    DropDependencies(TaskDependencies<F, FD, O>),
     Output(O),
     None,
 }

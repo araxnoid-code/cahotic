@@ -20,16 +20,16 @@ where
         // create return_ptr
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
         // dependencies
-        let dependencies_core_ptr = Box::leak(Box::new(TaskDependenciesCore::blank()));
-        let output_dependencies_ptr = Box::leak(Box::new(Vec::new()));
+        // let dependencies_core_ptr = Box::leak(Box::new(TaskDependenciesCore::blank()));
+        // let output_dependencies_ptr = Box::leak(Box::new(Vec::new()));
         // create waiting task
         let waiting_task = WaitingTask {
             id: self.id_counter.fetch_add(1, Ordering::Release),
             task: ExecTask::Task(task),
             next: AtomicPtr::new(null_mut()),
             return_ptr,
-            dependencies_core_ptr,
-            output_dependencies_ptr,
+            dependencies_core_ptr: None,
+            output_dependencies_ptr: None,
         };
 
         let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
@@ -47,9 +47,10 @@ where
         };
 
         PoolWait {
+            status: crate::PoolWaitStatus::Task,
             output: pool_out,
-            dependencies_core_ptr,
-            output_dependencies_ptr,
+            dependencies_core_ptr: None,
+            output_dependencies_ptr: None,
         }
     }
 

@@ -27,6 +27,6 @@ where
     pub(crate) next: AtomicPtr<WaitingTask<F, FD, O>>,
     pub(crate) return_ptr: &'static AtomicPtr<O>,
     // dependencies
-    pub(crate) dependencies_core_ptr: &'static TaskDependenciesCore<F, FD, O>, // will be shared. to Waiting<O> and WaitingTask<F, O>
-    pub(crate) output_dependencies_ptr: &'static Vec<PoolOutput<O>>,
+    pub(crate) dependencies_core_ptr: Option<&'static TaskDependenciesCore<F, FD, O>>, // will be shared. to Waiting<O> and WaitingTask<F, O>
+    pub(crate) output_dependencies_ptr: Option<&'static Vec<PoolOutput<O>>>,
 }

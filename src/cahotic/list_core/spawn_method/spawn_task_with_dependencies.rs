@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolOutput, TaskDependencies, TaskDependenciesCore, TaskTrait,
-    TaskWithDependenciesTrait, WaitingTask,
+    ExecTask, ListCore, OutputTrait, PoolOutput, PoolWait, TaskDependencies, TaskDependenciesCore,
+    TaskTrait, TaskWithDependenciesTrait, WaitingTask,
 };
 
 impl<F, FD, O> ListCore<F, FD, O>
@@ -18,26 +18,28 @@ where
         &self,
         task: FD,
         dependencies: &TaskDependencies<F, FD, O>,
-        task_dependencies_core_ptr: Option<&'static TaskDependenciesCore<F, FD, O>>,
-    ) -> PoolOutput<O> {
+        dependencies_core_ptr: Option<&'static TaskDependenciesCore<F, FD, O>>,
+    ) -> PoolWait<F, FD, O> {
         // main thread only focus in swap queue, base on swap start
         // update in_task handler
         self.in_task.fetch_add(1, Ordering::SeqCst);
         // create return_ptr
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
+        // dependencies
+        // let dependencies_core_ptr = if let Some(ptr) = task_dependencies_core_ptr {
+        //     ptr
+        // } else {
+        //     Box::leak(Box::new(TaskDependenciesCore::blank()))
+        // };
+        let output_dependencies_ptr = Some(dependencies.waiting_list);
         // create waiting task
-
         let waiting_task = WaitingTask {
             id: self.id_counter.fetch_add(1, Ordering::Release),
             task: ExecTask::TaskWithDependencies(task),
             next: AtomicPtr::new(null_mut()),
             return_ptr,
-            dependencies_core_ptr: if let Some(ptr) = task_dependencies_core_ptr {
-                ptr
-            } else {
-                Box::leak(Box::new(TaskDependenciesCore::blank()))
-            },
-            output_dependencies_ptr: dependencies.waiting_list,
+            dependencies_core_ptr,
+            output_dependencies_ptr,
         };
 
         let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
@@ -118,8 +120,15 @@ where
             self.spawn_task_with_dependencies_normal(waiting_task_ptr);
         };
 
-        PoolOutput {
+        let pool_out = PoolOutput {
             data_ptr: return_ptr,
+        };
+
+        PoolWait {
+            status: crate::PoolWaitStatus::TaskWithDependencies,
+            output: pool_out,
+            dependencies_core_ptr,
+            output_dependencies_ptr,
         }
     }
 

@@ -12,9 +12,19 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolOutput, TaskDependenciesCore, TaskTrait,
+    ExecTask, ListCore, OutputTrait, PoolOutput, TaskDependencies, TaskDependenciesCore, TaskTrait,
     TaskWithDependenciesTrait, WaitingTask,
 };
+
+// pub(crate) enum WaitingDrop<F, FD, O>
+// where
+//     F: TaskTrait<O> + 'static + Send,
+//     FD: TaskWithDependenciesTrait<O> + Send + 'static,
+//     O: 'static + OutputTrait + Send,
+// {
+//     Task(*mut WaitingTask<F, FD, O>),
+//     Dependencies(TaskDependencies<F, FD, O>),
+// }
 
 pub struct ThreadUnit<F, FD, O>
 where
@@ -63,7 +73,7 @@ where
             }
 
             if let Some(drop_waiting_task) = self.drop_stack.pop() {
-                if let Err(waiting_task) = self.list_core.drop_pool_sch(drop_waiting_task) {
+                if let Err(waiting_task) = self.list_core.drop_execute(drop_waiting_task) {
                     self.drop_stack.push(waiting_task);
                 } else {
                     self.done_task.fetch_add(1, Ordering::Release);
@@ -79,25 +89,27 @@ where
 
             // execute
             unsafe {
-                if let ExecTask::Drop(_) = (*task).task {
-                    if let Err(waiting_task) = self.list_core.drop_pool_sch(task) {
+                if let ExecTask::DropPool(_) | ExecTask::DropDependencies(_) = (*task).task {
+                    if let Err(waiting_task) = self.list_core.drop_execute(task) {
                         self.drop_stack.push(waiting_task);
                     } else {
                         self.done_task.fetch_add(1, Ordering::Release);
                     }
 
                     spin_loop();
+                } else if let ExecTask::DropDependencies(dependencies) = &(*task).task {
                 } else {
                     let box_task = Box::from_raw(task);
                     let output = match &box_task.task {
                         ExecTask::Task(f) => f.execute(),
                         ExecTask::TaskWithDependencies(f) => {
-                            f.execute(box_task.output_dependencies_ptr)
+                            f.execute(box_task.output_dependencies_ptr.expect(
+                                "Thread Error, function need dependencies but dependencies is None",
+                            ))
                         }
-                        ExecTask::Output(o) => {
-                            panic!()
-                        }
-                        ExecTask::Drop(_) => panic!(),
+                        ExecTask::Output(_) => panic!(),
+                        ExecTask::DropPool(_) => panic!(),
+                        ExecTask::DropDependencies(_) => panic!(),
                         ExecTask::None => panic!(),
                     };
 
@@ -115,10 +127,9 @@ where
     }
 
     fn dependencies_handler(&self, task: Box<WaitingTask<F, FD, O>>) -> Option<()> {
-        if task.dependencies_core_ptr.status {
+        if let Some(dependencies_core_ptr) = task.dependencies_core_ptr {
             // update counter
-            let counter = task
-                .dependencies_core_ptr
+            let counter = dependencies_core_ptr
                 .counter
                 .fetch_sub(1, Ordering::Release);
 
@@ -127,16 +138,14 @@ where
             }
 
             // update done flag
-            task.dependencies_core_ptr
-                .done
-                .store(true, Ordering::Release);
+            dependencies_core_ptr.done.store(true, Ordering::Release);
 
-            let check_task = task.dependencies_core_ptr.start.load(Ordering::Acquire);
+            let check_task = dependencies_core_ptr.start.load(Ordering::Acquire);
             if !check_task.is_null() {
                 // CAS RETRY LOOP
                 let start_waiting_task = loop {
-                    let status = task.dependencies_core_ptr.start.compare_exchange(
-                        task.dependencies_core_ptr.start.load(Ordering::Acquire),
+                    let status = dependencies_core_ptr.start.compare_exchange(
+                        dependencies_core_ptr.start.load(Ordering::Acquire),
                         null_mut(),
                         Ordering::AcqRel,
                         Ordering::Acquire,
@@ -150,14 +159,17 @@ where
                     }
                 };
 
-                let end_waiting_task = task
-                    .dependencies_core_ptr
+                let end_waiting_task = dependencies_core_ptr
                     .end
                     .swap(null_mut(), Ordering::Acquire);
 
                 self.list_core
                     .task_from_dependencies(start_waiting_task, end_waiting_task);
             }
+
+            dependencies_core_ptr
+                .drop_ready
+                .store(true, Ordering::Release);
         }
 
         drop(task);

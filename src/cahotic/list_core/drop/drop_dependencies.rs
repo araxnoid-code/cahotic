@@ -1,13 +1,11 @@
 use std::{
-    hint::spin_loop,
     ptr::null_mut,
     sync::atomic::{AtomicPtr, Ordering},
 };
 
 use crate::{
-    DropSchedule, ExecTask, ListCore, OutputTrait, PoolOutput, PoolWait, PoolWaitStatus,
-    TaskDependenciesCore, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
-    cahotic::list_core::drop::drop_sch,
+    ExecTask, ListCore, OutputTrait, TaskDependencies, TaskTrait, TaskWithDependenciesTrait,
+    WaitingTask,
 };
 
 impl<F, FD, O> ListCore<F, FD, O>
@@ -16,8 +14,7 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn drop_pool(&self, pool_wait: PoolWait<F, FD, O>) {
-        let drop_sch = DropSchedule { pool_wait };
+    pub fn drop_dependencies(&self, dependencies: TaskDependencies<F, FD, O>) {
         // update in_task handler
         self.in_task.fetch_add(1, Ordering::Release);
         // create return_ptr
@@ -26,7 +23,7 @@ where
         // create waiting task
         let waiting_task = WaitingTask {
             id: self.id_counter.fetch_add(1, Ordering::Release),
-            task: ExecTask::DropPool(drop_sch),
+            task: ExecTask::DropDependencies(dependencies),
             next: AtomicPtr::new(null_mut()),
             return_ptr,
             dependencies_core_ptr: None,
@@ -41,6 +38,7 @@ where
             (*pre_start_task)
                 .next
                 .store(waiting_task_ptr, Ordering::Release);
+            // }
         }
     }
 }

@@ -40,6 +40,10 @@ where
         self.list_core.drop_pool(pool_wait);
     }
 
+    pub fn drop_dependencies(&self, dependencies: TaskDependencies<F, FD, O>) {
+        self.list_core.drop_dependencies(dependencies);
+    }
+
     pub fn spwan_dependencies<D>(&self, dependencies: D) -> TaskDependencies<F, FD, O>
     where
         D: TaskDependenciesTrait<F, O>,
@@ -51,7 +55,7 @@ where
         &self,
         task: FD,
         dependencies: &TaskDependencies<F, FD, O>,
-    ) -> PoolOutput<O> {
+    ) -> PoolWait<F, FD, O> {
         self.list_core
             .spawn_task_with_dependencies(task, dependencies, None)
     }

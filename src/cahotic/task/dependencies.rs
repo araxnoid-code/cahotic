@@ -6,6 +6,7 @@ where
 {
     pub(crate) status: bool,
     pub(crate) done: AtomicBool,
+    pub(crate) drop_ready: AtomicBool,
     pub(crate) counter: AtomicUsize,
     pub(crate) len: AtomicU64,
     pub(crate) start: AtomicPtr<WaitingTask<F, FD, O>>, // default null, will capture the task need this task output
@@ -27,6 +28,7 @@ where
         Self {
             status: true,
             done: AtomicBool::new(false),
+            drop_ready: AtomicBool::new(false),
             counter: AtomicUsize::new(counter),
             len: AtomicU64::new(0),
             start: AtomicPtr::new(null_mut()),
@@ -38,6 +40,7 @@ where
         Self {
             status: false,
             done: AtomicBool::new(false),
+            drop_ready: AtomicBool::new(true),
             counter: AtomicUsize::new(0),
             len: AtomicU64::new(0),
             start: AtomicPtr::new(null_mut()),

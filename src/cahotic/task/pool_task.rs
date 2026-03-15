@@ -5,15 +5,21 @@ use std::{
 
 use crate::{OutputTrait, TaskDependenciesCore, TaskTrait, TaskWithDependenciesTrait};
 
+pub enum PoolWaitStatus {
+    Task,
+    TaskWithDependencies,
+}
+
 pub struct PoolWait<F, FD, O>
 where
     F: TaskTrait<O> + Send + 'static,
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
+    pub(crate) status: PoolWaitStatus,
     pub(crate) output: PoolOutput<O>,
-    pub(crate) dependencies_core_ptr: &'static TaskDependenciesCore<F, FD, O>,
-    pub(crate) output_dependencies_ptr: &'static Vec<PoolOutput<O>>,
+    pub(crate) dependencies_core_ptr: Option<&'static TaskDependenciesCore<F, FD, O>>,
+    pub(crate) output_dependencies_ptr: Option<&'static Vec<PoolOutput<O>>>,
 }
 
 impl<F, FD, O> PoolWait<F, FD, O>
@@ -30,7 +36,7 @@ where
         self.output.get()
     }
 
-    pub fn collect(self) -> O {
+    pub fn collect(&self) -> &O {
         self.output.collect()
     }
 }
@@ -60,14 +66,14 @@ impl<O> PoolOutput<O> {
         }
     }
 
-    pub fn collect(self) -> O {
+    pub fn collect(&self) -> &O {
         unsafe {
             while self.data_ptr.load(Ordering::Acquire).is_null() {
                 spin_loop();
             }
 
-            let data_box = Box::from_raw(self.data_ptr.load(Ordering::Acquire));
-            *data_box
+            let data_box = self.data_ptr.load(Ordering::Acquire);
+            &*data_box
         }
     }
 }
