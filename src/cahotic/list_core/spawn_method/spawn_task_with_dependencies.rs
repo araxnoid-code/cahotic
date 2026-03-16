@@ -1,10 +1,10 @@
 use std::{
     ptr::null_mut,
-    sync::atomic::{AtomicPtr, Ordering},
+    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolOutput, PoolWait, TaskDependencies, TaskDependenciesCore,
+    ExecTask, ListCore, OutputTrait, PollWaiting, TaskDependencies, TaskDependenciesCore,
     TaskTrait, TaskWithDependenciesTrait, WaitingTask,
 };
 
@@ -19,18 +19,13 @@ where
         task: FD,
         dependencies: &TaskDependencies<F, FD, O>,
         dependencies_core_ptr: Option<&'static TaskDependenciesCore<F, FD, O>>,
-    ) -> PoolWait<F, FD, O> {
+    ) -> PollWaiting<O> {
         // main thread only focus in swap queue, base on swap start
         // update in_task handler
         self.in_task.fetch_add(1, Ordering::SeqCst);
         // create return_ptr
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
-        // dependencies
-        // let dependencies_core_ptr = if let Some(ptr) = task_dependencies_core_ptr {
-        //     ptr
-        // } else {
-        //     Box::leak(Box::new(TaskDependenciesCore::blank()))
-        // };
+
         let output_dependencies_ptr = Some(dependencies.waiting_list);
         // create waiting task
         let waiting_task = WaitingTask {
@@ -80,10 +75,6 @@ where
                                 .end
                                 .store(waiting_task_ptr, Ordering::Release);
                         }
-                        dependencies
-                            .task_dependencies_ptr
-                            .len
-                            .fetch_add(1, Ordering::SeqCst);
                     } else {
                         dependencies
                             .task_dependencies_ptr
@@ -108,10 +99,6 @@ where
                             .end
                             .store(waiting_task_ptr, Ordering::Release);
                     }
-                    dependencies
-                        .task_dependencies_ptr
-                        .len
-                        .fetch_add(1, Ordering::SeqCst);
                 }
             } else {
                 self.spawn_task_with_dependencies_normal(waiting_task_ptr);
@@ -120,15 +107,9 @@ where
             self.spawn_task_with_dependencies_normal(waiting_task_ptr);
         };
 
-        let pool_out = PoolOutput {
+        PollWaiting {
             data_ptr: return_ptr,
-        };
-
-        PoolWait {
-            status: crate::PoolWaitStatus::TaskWithDependencies,
-            output: pool_out,
-            dependencies_core_ptr,
-            output_dependencies_ptr,
+            drop_after_caounter: Box::leak(Box::new(AtomicUsize::new(0))),
         }
     }
 

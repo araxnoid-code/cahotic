@@ -1,10 +1,10 @@
 use std::{
     ptr::null_mut,
-    sync::atomic::{AtomicPtr, Ordering},
+    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolOutput, TaskDependencies, TaskDependenciesCore,
+    ExecTask, ListCore, OutputTrait, PollWaiting, TaskDependencies, TaskDependenciesCore,
     TaskDependenciesTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
 };
 
@@ -53,23 +53,13 @@ where
                     .store(waiting_task_ptr, Ordering::Release);
             }
 
-            // let pool_out = PoolOutput {
-            //     data_ptr: return_ptr,
-            // };
-
-            // PoolWait {
-            //     status: crate::PoolWaitStatus::Task,
-            //     output: pool_out,
-            //     dependencies_core_ptr,
-            //     output_dependencies_ptr,
-            // }
-
-            waiting_output.push(PoolOutput {
+            waiting_output.push(PollWaiting {
                 data_ptr: return_ptr,
+                drop_after_caounter: Box::leak(Box::new(AtomicUsize::new(0))),
             });
         }
 
-        let waiting_output_leak: &'static mut Vec<PoolOutput<O>> =
+        let waiting_output_leak: &'static mut Vec<PollWaiting<O>> =
             Box::leak(Box::new(waiting_output));
 
         TaskDependencies {

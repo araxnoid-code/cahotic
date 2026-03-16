@@ -1,6 +1,9 @@
-use std::fmt::Debug;
+use std::{
+    fmt::Debug,
+    sync::atomic::{AtomicPtr, AtomicUsize},
+};
 
-use crate::{DropSchedule, OutputTrait, TaskDependencies, TaskTrait, TaskWithDependenciesTrait};
+use crate::{OutputTrait, PollWaiting, TaskDependencies, TaskTrait, TaskWithDependenciesTrait};
 
 pub enum ExecTask<F, FD, O>
 where
@@ -10,8 +13,16 @@ where
 {
     Task(F),
     TaskWithDependencies(FD),
-    DropPool(DropSchedule<F, FD, O>),
+    DropPoll(PollWaiting<O>),
+    DropPollAfter(
+        PollWaiting<O>,
+        (&'static AtomicPtr<O>, &'static AtomicUsize),
+    ),
     DropDependencies(TaskDependencies<F, FD, O>),
+    DropDependenciesAfter(
+        TaskDependencies<F, FD, O>,
+        (&'static AtomicPtr<O>, &'static AtomicUsize),
+    ),
     Output(O),
     None,
 }

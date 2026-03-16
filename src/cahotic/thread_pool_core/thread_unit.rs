@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     fmt::Debug,
     hint::spin_loop,
     os::fd,
@@ -12,19 +13,9 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolOutput, TaskDependencies, TaskDependenciesCore, TaskTrait,
-    TaskWithDependenciesTrait, WaitingTask,
+    ExecTask, ListCore, OutputTrait, PollWaiting, TaskDependencies, TaskDependenciesCore,
+    TaskTrait, TaskWithDependenciesTrait, WaitingTask,
 };
-
-// pub(crate) enum WaitingDrop<F, FD, O>
-// where
-//     F: TaskTrait<O> + 'static + Send,
-//     FD: TaskWithDependenciesTrait<O> + Send + 'static,
-//     O: 'static + OutputTrait + Send,
-// {
-//     Task(*mut WaitingTask<F, FD, O>),
-//     Dependencies(TaskDependencies<F, FD, O>),
-// }
 
 pub struct ThreadUnit<F, FD, O>
 where
@@ -36,7 +27,7 @@ where
     // // unique
     pub(crate) id: usize,
     // // drop-stack
-    pub(crate) drop_stack: Vec<*mut WaitingTask<F, FD, O>>,
+    pub(crate) drop_queue: VecDeque<*mut WaitingTask<F, FD, O>>,
 
     // share
     // // thread_pool
@@ -72,9 +63,9 @@ where
                 spin_loop();
             }
 
-            if let Some(drop_waiting_task) = self.drop_stack.pop() {
+            if let Some(drop_waiting_task) = self.drop_queue.pop_front() {
                 if let Err(waiting_task) = self.list_core.drop_execute(drop_waiting_task) {
-                    self.drop_stack.push(waiting_task);
+                    self.drop_queue.push_back(waiting_task);
                 } else {
                     self.done_task.fetch_add(1, Ordering::Release);
                 }
@@ -89,15 +80,18 @@ where
 
             // execute
             unsafe {
-                if let ExecTask::DropPool(_) | ExecTask::DropDependencies(_) = (*task).task {
+                if let ExecTask::DropPoll(_)
+                | ExecTask::DropDependencies(_)
+                | ExecTask::DropPollAfter(_, _)
+                | ExecTask::DropDependenciesAfter(_, _) = (*task).task
+                {
                     if let Err(waiting_task) = self.list_core.drop_execute(task) {
-                        self.drop_stack.push(waiting_task);
+                        self.drop_queue.push_back(waiting_task);
                     } else {
                         self.done_task.fetch_add(1, Ordering::Release);
                     }
 
                     spin_loop();
-                } else if let ExecTask::DropDependencies(dependencies) = &(*task).task {
                 } else {
                     let box_task = Box::from_raw(task);
                     let output = match &box_task.task {
@@ -108,8 +102,10 @@ where
                             ))
                         }
                         ExecTask::Output(_) => panic!(),
-                        ExecTask::DropPool(_) => panic!(),
+                        ExecTask::DropPoll(_) => panic!(),
                         ExecTask::DropDependencies(_) => panic!(),
+                        ExecTask::DropPollAfter(_, _) => panic!(),
+                        ExecTask::DropDependenciesAfter(_, _) => panic!(),
                         ExecTask::None => panic!(),
                     };
 

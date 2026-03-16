@@ -13,16 +13,16 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn spawn_task(&self, task: F) -> PollWaiting<O> {
+    pub fn drop_pool(&self, poll_waiting: PollWaiting<O>) {
         // update in_task handler
-        self.in_task.fetch_add(1, Ordering::SeqCst);
+        self.in_task.fetch_add(1, Ordering::Release);
         // create return_ptr
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
-        // dependencies
+
         // create waiting task
         let waiting_task = WaitingTask {
             id: self.id_counter.fetch_add(1, Ordering::Release),
-            task: ExecTask::Task(task),
+            task: ExecTask::DropPoll(poll_waiting),
             next: AtomicPtr::new(null_mut()),
             return_ptr,
             dependencies_core_ptr: None,
@@ -37,22 +37,6 @@ where
             (*pre_start_task)
                 .next
                 .store(waiting_task_ptr, Ordering::Release);
-        }
-
-        PollWaiting {
-            data_ptr: return_ptr,
-            drop_after_caounter: Box::leak(Box::new(AtomicUsize::new(0))),
-        }
-    }
-
-    pub(crate) fn task_from_dependencies(
-        &self,
-        start_dep: *mut WaitingTask<F, FD, O>,
-        end_dep: *mut WaitingTask<F, FD, O>,
-    ) {
-        let pre_start_task = self.swap_start.swap(start_dep, Ordering::AcqRel);
-        unsafe {
-            (*pre_start_task).next.store(end_dep, Ordering::Release);
         }
     }
 }

@@ -1,7 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
 use crate::{
-    ListCore, OutputTrait, PoolOutput, PoolWait, TaskDependencies, TaskDependenciesTrait,
+    DropAfterTrait, ListCore, OutputTrait, PollWaiting, TaskDependencies, TaskDependenciesTrait,
     TaskTrait, TaskWithDependenciesTrait, ThreadPoolCore,
 };
 
@@ -32,12 +32,19 @@ where
         }
     }
 
-    pub fn spawn_task(&self, f: F) -> PoolWait<F, FD, O> {
+    pub fn spawn_task(&self, f: F) -> PollWaiting<O> {
         self.list_core.spawn_task(f)
     }
 
-    pub fn drop_pool(&self, pool_wait: PoolWait<F, FD, O>) {
-        self.list_core.drop_pool(pool_wait);
+    pub fn drop_poll(&self, pool_waiting: PollWaiting<O>) {
+        self.list_core.drop_pool(pool_waiting);
+    }
+
+    pub fn drop_after<D>(&self, drop: D, poll_waiting: &PollWaiting<O>)
+    where
+        D: DropAfterTrait<F, FD, O>,
+    {
+        self.list_core.drop_after(drop, poll_waiting);
     }
 
     pub fn drop_dependencies(&self, dependencies: TaskDependencies<F, FD, O>) {
@@ -55,7 +62,7 @@ where
         &self,
         task: FD,
         dependencies: &TaskDependencies<F, FD, O>,
-    ) -> PoolWait<F, FD, O> {
+    ) -> PollWaiting<O> {
         self.list_core
             .spawn_task_with_dependencies(task, dependencies, None)
     }

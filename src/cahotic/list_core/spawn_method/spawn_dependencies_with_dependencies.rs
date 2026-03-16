@@ -1,10 +1,10 @@
 use std::{
     ptr::null_mut,
-    sync::atomic::{AtomicPtr, Ordering},
+    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PoolOutput, TaskDependencies, TaskDependenciesCore,
+    ExecTask, ListCore, OutputTrait, PollWaiting, TaskDependencies, TaskDependenciesCore,
     TaskDependenciesWithDependenciesTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
 };
 
@@ -47,7 +47,7 @@ where
             }
         }
 
-        let waiting_output_leak: &'static mut Vec<PoolOutput<O>> =
+        let waiting_output_leak: &'static mut Vec<PollWaiting<O>> =
             Box::leak(Box::new(waiting_output));
         TaskDependencies {
             waiting_list: waiting_output_leak,
@@ -59,7 +59,7 @@ where
         &self,
         task: FD,
         task_dependencies_core_ptr: Option<&'static TaskDependenciesCore<F, FD, O>>,
-    ) -> PoolOutput<O> {
+    ) -> PollWaiting<O> {
         // main thread only focus in swap queue, base on swap start
         // update in_task handler
         self.in_task.fetch_add(1, Ordering::SeqCst);
@@ -90,8 +90,9 @@ where
             self.swap_end.store(waiting_task_ptr, Ordering::Release);
         }
 
-        PoolOutput {
+        PollWaiting {
             data_ptr: return_ptr,
+            drop_after_caounter: Box::leak(Box::new(AtomicUsize::new(0))),
         }
     }
 }

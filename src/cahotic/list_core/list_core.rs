@@ -2,7 +2,7 @@ use std::{
     ptr::{self, null_mut},
     sync::{
         Arc,
-        atomic::{AtomicPtr, AtomicU64, Ordering},
+        atomic::{AtomicPtr, AtomicU64, AtomicUsize, Ordering},
     },
 };
 
@@ -43,6 +43,7 @@ where
             id: 0,
             task: ExecTask::None,
             next: AtomicPtr::new(null_mut()),
+
             return_ptr,
             dependencies_core_ptr: None,
             output_dependencies_ptr: None,
@@ -65,7 +66,9 @@ where
         }
     }
 
-    pub fn get_waiting_task_from_primary_stack(&self) -> Result<*mut WaitingTask<F, FD, O>, &str> {
+    pub fn get_waiting_task_from_primary_stack(
+        &self,
+    ) -> Result<*mut WaitingTask<F, FD, O>, &'static str> {
         unsafe {
             let waiting_task = self.end.load(Ordering::Acquire);
             if waiting_task.is_null() {

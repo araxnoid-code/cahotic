@@ -1,11 +1,11 @@
 use std::{
     ptr::null_mut,
-    sync::atomic::{AtomicPtr, Ordering},
+    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
 use crate::{
-    DropSchedule, ExecTask, ListCore, OutputTrait, PoolWait, TaskTrait, TaskWithDependenciesTrait,
-    WaitingTask,
+    DropAfterTrait, ExecTask, ListCore, OutputTrait, PollWaiting, TaskTrait,
+    TaskWithDependenciesTrait, WaitingTask,
 };
 
 impl<F, FD, O> ListCore<F, FD, O>
@@ -14,8 +14,15 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn drop_pool(&self, pool_wait: PoolWait<F, FD, O>) {
-        let drop_sch = DropSchedule { pool_wait };
+    pub fn drop_after<D>(&self, drop: D, poll_wait: &PollWaiting<O>)
+    where
+        D: DropAfterTrait<F, FD, O>,
+    {
+        // update after_drop_counter
+        poll_wait
+            .drop_after_caounter
+            .fetch_add(1, Ordering::Release);
+
         // update in_task handler
         self.in_task.fetch_add(1, Ordering::Release);
         // create return_ptr
@@ -24,7 +31,7 @@ where
         // create waiting task
         let waiting_task = WaitingTask {
             id: self.id_counter.fetch_add(1, Ordering::Release),
-            task: ExecTask::DropPool(drop_sch),
+            task: drop.get_exec_task(poll_wait),
             next: AtomicPtr::new(null_mut()),
             return_ptr,
             dependencies_core_ptr: None,
