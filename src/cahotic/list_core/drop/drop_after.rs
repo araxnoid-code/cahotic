@@ -26,14 +26,14 @@ where
         // update in_task handler
         self.in_task.fetch_add(1, Ordering::Release);
         // create return_ptr
-        let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
+        // let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
 
         // create waiting task
         let waiting_task = WaitingTask {
             id: self.id_counter.fetch_add(1, Ordering::Release),
             task: drop.get_exec_task(poll_wait),
             next: AtomicPtr::new(null_mut()),
-            return_ptr,
+            return_ptr: None,
             dependencies_core_ptr: None,
             output_dependencies_ptr: None,
         };

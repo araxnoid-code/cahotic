@@ -47,6 +47,10 @@ where
         self.list_core.drop_after(drop, poll_waiting);
     }
 
+    pub fn swap_drop_arena(&self) {
+        self.list_core.swap_drop_arena();
+    }
+
     pub fn drop_dependencies(&self, dependencies: TaskDependencies<F, FD, O>) {
         self.list_core.drop_dependencies(dependencies);
     }

@@ -68,9 +68,12 @@ where
         // create waiting task
         let waiting_task = WaitingTask {
             id: self.id_counter.fetch_add(1, Ordering::Release),
-            task: ExecTask::TaskWithDependencies(task),
+            task: ExecTask::TaskWithDependencies(
+                task,
+                self.drop_arena.get_current_done_counter_ptr(),
+            ),
             next: AtomicPtr::new(null_mut()),
-            return_ptr,
+            return_ptr: Some(return_ptr),
             dependencies_core_ptr: task_dependencies_core_ptr,
             output_dependencies_ptr: None,
         };

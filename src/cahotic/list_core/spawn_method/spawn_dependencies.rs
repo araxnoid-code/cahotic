@@ -29,16 +29,17 @@ where
 
         for task in task_list {
             // update in_task handler
-            self.in_task.fetch_add(1, Ordering::SeqCst);
+            self.drop_arena.add_current_done_counter_ptr(1);
+            self.in_task.fetch_add(1, Ordering::Release);
             // create return_ptr
             let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
 
             // create waiting task
             let waiting_task = WaitingTask {
                 id: self.id_counter.fetch_add(1, Ordering::Release),
-                task: ExecTask::Task(task),
+                task: ExecTask::Task(task, self.drop_arena.get_current_done_counter_ptr()),
                 next: AtomicPtr::new(null_mut()),
-                return_ptr,
+                return_ptr: Some(return_ptr),
                 dependencies_core_ptr: Some(task_dependencies_core_ptr),
                 output_dependencies_ptr: None,
             };

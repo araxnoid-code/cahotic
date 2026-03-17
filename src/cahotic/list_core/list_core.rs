@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use crate::{ExecTask, OutputTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask};
+use crate::{DropArena, ExecTask, OutputTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask};
 
 pub struct ListCore<F, FD, O>
 where
@@ -18,6 +18,9 @@ where
     pub(crate) id_counter: AtomicU64,
     pub(crate) start: AtomicPtr<WaitingTask<F, FD, O>>,
     pub(crate) end: AtomicPtr<WaitingTask<F, FD, O>>,
+
+    // ArenaDrop
+    pub(crate) drop_arena: DropArena<F, FD, O>,
 
     // handler
     pub(crate) in_task: Arc<AtomicU64>,
@@ -34,17 +37,11 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub fn init() -> ListCore<F, FD, O> {
-        // dummy
-        let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
-        // let dependencies_core_ptr = Box::leak(Box::new(TaskDependenciesCore::<F, FD, O>::blank()));
-        // let output_dependencies_ptr = Box::leak(Box::new(Vec::new()));
-        // create waiting task
         let waiting_task = WaitingTask {
             id: 0,
             task: ExecTask::None,
             next: AtomicPtr::new(null_mut()),
-
-            return_ptr,
+            return_ptr: None,
             dependencies_core_ptr: None,
             output_dependencies_ptr: None,
         };
@@ -57,12 +54,25 @@ where
             start: AtomicPtr::new(ptr::null_mut()),
             end: AtomicPtr::new(ptr::null_mut()),
 
+            // drop
+            drop_arena: DropArena::init(),
+
             // handler
             in_task: Arc::new(AtomicU64::new(0)),
 
             // Swap Stack
             swap_start: AtomicPtr::new(waiting_task_ptr),
             swap_end: AtomicPtr::new(waiting_task_ptr),
+        }
+    }
+
+    pub fn swap_drop_arena(&self) {
+        let list = self.drop_arena.swap_drop_arena();
+        if let Some((start, end)) = list {
+            let pre_start_task = self.swap_start.swap(start, Ordering::AcqRel);
+            unsafe {
+                (*pre_start_task).next.store(end, Ordering::Release);
+            }
         }
     }
 

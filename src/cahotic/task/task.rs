@@ -11,18 +11,23 @@ where
     FD: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    Task(F),
-    TaskWithDependencies(FD),
-    DropPoll(PollWaiting<O>),
+    Task(F, &'static AtomicUsize),
+    TaskWithDependencies(FD, &'static AtomicUsize),
+    // DROP
+    DropPoll(PollWaiting<O>, &'static AtomicUsize),
+    DropDependencies(TaskDependencies<F, FD, O>, &'static AtomicUsize),
+
+    // DROPAFTER
     DropPollAfter(
         PollWaiting<O>,
         (&'static AtomicPtr<O>, &'static AtomicUsize),
     ),
-    DropDependencies(TaskDependencies<F, FD, O>),
     DropDependenciesAfter(
         TaskDependencies<F, FD, O>,
         (&'static AtomicPtr<O>, &'static AtomicUsize),
     ),
+    // DROPAFTER
+    // DROP
     Output(O),
     None,
 }

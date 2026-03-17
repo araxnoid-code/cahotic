@@ -80,8 +80,8 @@ where
 
             // execute
             unsafe {
-                if let ExecTask::DropPoll(_)
-                | ExecTask::DropDependencies(_)
+                if let ExecTask::DropPoll(_, _)
+                | ExecTask::DropDependencies(_, _)
                 | ExecTask::DropPollAfter(_, _)
                 | ExecTask::DropDependenciesAfter(_, _) = (*task).task
                 {
@@ -95,22 +95,40 @@ where
                 } else {
                     let box_task = Box::from_raw(task);
                     let output = match &box_task.task {
-                        ExecTask::Task(f) => f.execute(),
-                        ExecTask::TaskWithDependencies(f) => {
-                            f.execute(box_task.output_dependencies_ptr.expect(
+                        ExecTask::Task(f, done_arena_counter) => {
+                            let output = Box::into_raw(Box::new(f.execute()));
+                            box_task
+                                .return_ptr
+                                .unwrap()
+                                .store(output, Ordering::Release);
+
+                            done_arena_counter.fetch_sub(1, Ordering::Release);
+                        }
+                        ExecTask::TaskWithDependencies(f, done_arena_counter) => {
+                            let output = Box::into_raw(Box::new(f.execute(box_task.output_dependencies_ptr.expect(
                                 "Thread Error, function need dependencies but dependencies is None",
-                            ))
+                            ))));
+
+                            box_task
+                                .return_ptr
+                                .unwrap()
+                                .store(output, Ordering::Release);
+
+                            done_arena_counter.fetch_sub(1, Ordering::Release);
                         }
                         ExecTask::Output(_) => panic!(),
-                        ExecTask::DropPoll(_) => panic!(),
-                        ExecTask::DropDependencies(_) => panic!(),
+                        ExecTask::DropPoll(_, _) => panic!(),
+                        ExecTask::DropDependencies(_, _) => panic!(),
                         ExecTask::DropPollAfter(_, _) => panic!(),
                         ExecTask::DropDependenciesAfter(_, _) => panic!(),
                         ExecTask::None => panic!(),
                     };
 
-                    let output = Box::into_raw(Box::new(output));
-                    box_task.return_ptr.store(output, Ordering::Release);
+                    // let output = Box::into_raw(Box::new(output));
+                    // box_task
+                    //     .return_ptr
+                    //     .unwrap()
+                    //     .store(output, Ordering::Release);
 
                     let _ = self.dependencies_handler(box_task);
 

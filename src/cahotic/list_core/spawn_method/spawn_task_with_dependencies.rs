@@ -30,9 +30,12 @@ where
         // create waiting task
         let waiting_task = WaitingTask {
             id: self.id_counter.fetch_add(1, Ordering::Release),
-            task: ExecTask::TaskWithDependencies(task),
+            task: ExecTask::TaskWithDependencies(
+                task,
+                self.drop_arena.get_current_done_counter_ptr(),
+            ),
             next: AtomicPtr::new(null_mut()),
-            return_ptr,
+            return_ptr: Some(return_ptr),
             dependencies_core_ptr,
             output_dependencies_ptr,
         };
@@ -106,6 +109,11 @@ where
         } else {
             self.spawn_task_with_dependencies_normal(waiting_task_ptr);
         };
+
+        self.drop_pool(PollWaiting {
+            data_ptr: return_ptr,
+            drop_after_caounter: Box::leak(Box::new(AtomicUsize::new(0))),
+        });
 
         PollWaiting {
             data_ptr: return_ptr,

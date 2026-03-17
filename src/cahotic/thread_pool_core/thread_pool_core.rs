@@ -102,45 +102,52 @@ where
     }
 
     pub fn join(self) {
+        // clean
+        loop {
+            if self
+                .list_core
+                .drop_arena
+                .arena0
+                .end
+                .load(Ordering::Acquire)
+                .is_null()
+                && self
+                    .list_core
+                    .drop_arena
+                    .arena1
+                    .end
+                    .load(Ordering::Acquire)
+                    .is_null()
+            {
+                break;
+            }
+            // println!(
+            //     "arena0 {} | arena1 {}",
+            //     self.list_core
+            //         .drop_arena
+            //         .arena0
+            //         .done_counter
+            //         .load(Ordering::Acquire),
+            //     self.list_core
+            //         .drop_arena
+            //         .arena1
+            //         .done_counter
+            //         .load(Ordering::Acquire)
+            // );
+            self.list_core.swap_drop_arena();
+            spin_loop();
+        }
+
         // check, all task done
         loop {
-            // println!(
-            //     "start prim: {:?}\nend prim: {:?}\nstart swap: {:?}\nend swap: {:?}\n",
-            //     self.list_core.start,
-            //     self.list_core.end,
-            //     self.list_core.swap_start,
-            //     self.list_core.swap_end
-            // );
-
-            // println!(
-            //     "swap: {:?}\nprim: {:?}\n",
-            //     self.list_core.is_swap_list_empty(),
-            //     self.list_core.is_primary_list_empty(),
-            // );
-
-            // if !self.list_core.start.load(Ordering::Acquire).is_null() {
-            //     unsafe {
-            //         println!(
-            //             "start {}\nend {}",
-            //             (*self.list_core.start.load(Ordering::Acquire)).id,
-            //             (*self.list_core.start.load(Ordering::Acquire)).id
-            //         )
-            //     }
-            // }
-            // println!(
-            //     "swap: {:?}\nprim: {:?}\n",
-            //     self.list_core.is_swap_list_empty(),
-            //     self.list_core.is_primary_list_empty(),
-            // );
-
-            // sleep(Duration::from_millis(50));
             // println!(
             //     "{}/{}",
             //     self.list_core.in_task.load(Ordering::SeqCst),
             //     self.done_task.load(Ordering::SeqCst)
             // );
-            if self.list_core.in_task.load(Ordering::SeqCst)
-                <= self.done_task.load(Ordering::SeqCst)
+            // sleep(Duration::from_millis(50));
+            if self.list_core.in_task.load(Ordering::Acquire)
+                <= self.done_task.load(Ordering::Acquire)
             {
                 break;
             }
