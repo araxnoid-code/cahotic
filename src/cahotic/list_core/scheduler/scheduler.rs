@@ -4,9 +4,7 @@ use std::{
     usize,
 };
 
-use crate::{
-    ExecTask, ListCore, OutputTrait, PollWaiting, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
-};
+use crate::{ExecTask, ListCore, OutputTrait, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask};
 
 pub struct SchedulerVec<O>
 where
@@ -32,7 +30,7 @@ where
 
 pub struct Scheduler<FS, O>
 where
-    FS: TaskWithDependenciesTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     idx: AtomicUsize,
@@ -42,7 +40,7 @@ where
 
 impl<FS, O> Scheduler<FS, O>
 where
-    FS: TaskWithDependenciesTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn init(task: FS) -> Scheduler<FS, O> {
@@ -64,7 +62,7 @@ where
 impl<F, FS, O> ListCore<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: TaskWithDependenciesTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn scheduler_exec(&self, scheduler: Scheduler<FS, O>) -> PollWaiting<O> {
@@ -85,8 +83,6 @@ where
             ),
             next: AtomicPtr::new(null_mut()),
             return_ptr: Some(return_ptr),
-            dependencies_core_ptr: None,
-            output_dependencies_ptr: None,
         };
 
         let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));

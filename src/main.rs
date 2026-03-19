@@ -1,8 +1,7 @@
 use std::{thread::sleep, time::Duration};
 
 use cahotic::{
-    Cahotic, OutputTrait, PollWaiting, Scheduler, SchedulerVec, TaskDependenciesTrait, TaskTrait,
-    TaskWithDependenciesTrait,
+    Cahotic, OutputTrait, PollWaiting, Scheduler, SchedulerTrait, SchedulerVec, TaskTrait,
 };
 
 #[derive(Debug)]
@@ -37,18 +36,12 @@ impl TaskTrait<MyOutput> for MyTask {
     }
 }
 
-impl TaskWithDependenciesTrait<MyOutput> for MyTask {
+impl SchedulerTrait<MyOutput> for MyTask {
     fn execute(&self, dependencies: SchedulerVec<MyOutput>) -> MyOutput {
         match self {
             MyTask::Exec(f) => f(),
             MyTask::Schdule(f) => f(dependencies),
         }
-    }
-}
-
-impl TaskDependenciesTrait<MyTask, MyOutput> for Vec<MyTask> {
-    fn task_list(self) -> Vec<MyTask> {
-        self
     }
 }
 

@@ -3,12 +3,12 @@ use std::{
     sync::atomic::{AtomicBool, AtomicU64, Ordering},
 };
 
-use crate::{Arena, OutputTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask};
+use crate::{Arena, OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
 pub struct DropArena<F, FD, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     arena_locate: AtomicBool,
@@ -19,7 +19,7 @@ where
 impl<F, FD, O> DropArena<F, FD, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn init() -> DropArena<F, FD, O> {

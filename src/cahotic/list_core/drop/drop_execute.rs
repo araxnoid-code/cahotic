@@ -3,15 +3,12 @@ use std::{
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
-use crate::{
-    ExecTask, ListCore, OutputTrait, PollWaiting, TaskDependenciesCore, TaskTrait,
-    TaskWithDependenciesTrait, WaitingTask,
-};
+use crate::{ExecTask, ListCore, OutputTrait, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask};
 
 impl<F, FD, O> ListCore<F, FD, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub(crate) fn drop_execute(
@@ -32,29 +29,6 @@ where
 
                     drop(Box::from_raw(
                         poll_waiting.drop_after_caounter as *const AtomicUsize as *mut AtomicUsize,
-                    ));
-
-                    // drop task
-                    drop(Box::from_raw(waiting_task_ptr));
-                    Ok(())
-                } else {
-                    Err(waiting_task_ptr)
-                }
-            } else if let ExecTask::DropDependencies(dependencies, _) = &(*waiting_task_ptr).task {
-                if dependencies
-                    .task_dependencies_ptr
-                    .drop_ready
-                    .load(Ordering::Acquire)
-                {
-                    drop(Box::from_raw(
-                        (dependencies).task_dependencies_ptr
-                            as *const TaskDependenciesCore<F, FD, O>
-                            as *mut TaskDependenciesCore<F, FD, O>,
-                    ));
-
-                    drop(Box::from_raw(
-                        (dependencies).waiting_list as *const Vec<PollWaiting<O>>
-                            as *mut Vec<PollWaiting<O>>,
                     ));
 
                     // drop task

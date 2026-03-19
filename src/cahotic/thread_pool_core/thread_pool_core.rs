@@ -12,12 +12,12 @@ use std::{
     time::Duration,
 };
 
-use crate::{ListCore, OutputTrait, TaskTrait, TaskWithDependenciesTrait, ThreadUnit, WaitingTask};
+use crate::{ListCore, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit, WaitingTask};
 
 pub struct ThreadPoolCore<F, FD, O, const N: usize>
 where
     F: TaskTrait<O> + 'static + Send,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send + Debug,
 {
     // main thread pool
@@ -36,7 +36,7 @@ where
 impl<F, FD, O, const N: usize> ThreadPoolCore<F, FD, O, N>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static + Sync,
+    FD: SchedulerTrait<O> + Send + 'static + Sync,
     O: OutputTrait + Send + Debug + Sync,
 {
     pub fn init(list_core: Arc<ListCore<F, FD, O>>) -> ThreadPoolCore<F, FD, O, N> {

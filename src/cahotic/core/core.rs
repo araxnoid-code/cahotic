@@ -1,14 +1,13 @@
 use std::{fmt::Debug, sync::Arc};
 
 use crate::{
-    DropAfterTrait, ListCore, OutputTrait, PollWaiting, Scheduler, TaskDependencies,
-    TaskDependenciesTrait, TaskTrait, TaskWithDependenciesTrait, ThreadPoolCore,
+    ListCore, OutputTrait, PollWaiting, Scheduler, SchedulerTrait, TaskTrait, ThreadPoolCore,
 };
 
 pub struct Cahotic<F, FD, O, const N: usize>
 where
     F: TaskTrait<O> + 'static + Send,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send + Send + Debug,
 {
     // List Core
@@ -20,7 +19,7 @@ where
 impl<F, FS, O, const N: usize> Cahotic<F, FS, O, N>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
-    FS: TaskWithDependenciesTrait<O> + Send + 'static + Sync,
+    FS: SchedulerTrait<O> + Send + 'static + Sync,
     O: 'static + OutputTrait + Send + Debug + Sync,
 {
     pub fn init() -> Cahotic<F, FS, O, N> {
@@ -40,19 +39,8 @@ where
         self.list_core.drop_pool(pool_waiting);
     }
 
-    pub fn drop_after<D>(&self, drop: D, poll_waiting: &PollWaiting<O>)
-    where
-        D: DropAfterTrait<F, FS, O>,
-    {
-        self.list_core.drop_after(drop, poll_waiting);
-    }
-
     pub fn swap_drop_arena(&self) {
         self.list_core.swap_drop_arena();
-    }
-
-    pub fn drop_dependencies(&self, dependencies: TaskDependencies<F, FS, O>) {
-        self.list_core.drop_dependencies(dependencies);
     }
 
     pub fn scheduler_exec(&self, scheduler: Scheduler<FS, O>) -> PollWaiting<O> {

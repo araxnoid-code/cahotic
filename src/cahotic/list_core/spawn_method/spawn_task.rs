@@ -1,16 +1,14 @@
 use std::{
     ptr::null_mut,
-    sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering},
+    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
-use crate::{
-    ExecTask, ListCore, OutputTrait, PollWaiting, TaskTrait, TaskWithDependenciesTrait, WaitingTask,
-};
+use crate::{ExecTask, ListCore, OutputTrait, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask};
 
 impl<F, FD, O> ListCore<F, FD, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn spawn_task(&self, task: F) -> PollWaiting<O> {
@@ -27,8 +25,6 @@ where
             task: ExecTask::Task(task, self.drop_arena.get_current_done_counter_ptr()),
             next: AtomicPtr::new(null_mut()),
             return_ptr: Some(return_ptr),
-            dependencies_core_ptr: None,
-            output_dependencies_ptr: None,
         };
 
         let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));

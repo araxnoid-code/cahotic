@@ -10,14 +10,13 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, SchedulerVec, TaskTrait, TaskWithDependenciesTrait,
-    WaitingTask,
+    ExecTask, ListCore, OutputTrait, SchedulerTrait, SchedulerVec, TaskTrait, WaitingTask,
 };
 
 pub struct ThreadUnit<F, FS, O>
 where
     F: TaskTrait<O> + 'static + Send,
-    FS: TaskWithDependenciesTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send + Debug,
 {
     // thread
@@ -39,7 +38,7 @@ where
 impl<F, FD, O> ThreadUnit<F, FD, O>
 where
     F: TaskTrait<O> + 'static + Send,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send + Debug,
 {
     pub fn running(&mut self) {
@@ -97,11 +96,7 @@ where
 
             // execute
             unsafe {
-                if let ExecTask::DropPoll(_, _)
-                | ExecTask::DropDependencies(_, _)
-                | ExecTask::DropPollAfter(_, _)
-                | ExecTask::DropDependenciesAfter(_, _) = (*task).task
-                {
+                if let ExecTask::DropPoll(_, _) = (*task).task {
                     if let Err(waiting_task) = self.list_core.drop_execute(task) {
                         self.scheduling_queue.push_back(waiting_task);
                     } else {
@@ -145,23 +140,8 @@ where
                             done_arena_counter.fetch_sub(1, Ordering::Release);
                         }
                         ExecTask::Scheduling(_, _, _, _) => panic!(),
-                        ExecTask::TaskWithDependencies(f, done_arena_counter) => {
-                            // let output = Box::into_raw(Box::new(f.execute(box_task.output_dependencies_ptr.expect(
-                            //     "Thread Error, function need dependencies but dependencies is None",
-                            // ))));
-
-                            // box_task
-                            //     .return_ptr
-                            //     .unwrap()
-                            //     .store(output, Ordering::Release);
-
-                            // done_arena_counter.fetch_sub(1, Ordering::Release);
-                        }
                         ExecTask::Output(_) => panic!(),
                         ExecTask::DropPoll(_, _) => panic!(),
-                        ExecTask::DropDependencies(_, _) => panic!(),
-                        ExecTask::DropPollAfter(_, _) => panic!(),
-                        ExecTask::DropDependenciesAfter(_, _) => panic!(),
                         ExecTask::None => panic!(),
                     };
 
@@ -171,56 +151,5 @@ where
                 }
             }
         }
-    }
-
-    fn dependencies_handler(&self, task: Box<WaitingTask<F, FD, O>>) -> Option<()> {
-        if let Some(dependencies_core_ptr) = task.dependencies_core_ptr {
-            // update counter
-            let counter = dependencies_core_ptr
-                .counter
-                .fetch_sub(1, Ordering::Release);
-
-            if counter - 1 != 0 {
-                return None;
-            }
-
-            // update done flag
-            dependencies_core_ptr.done.store(true, Ordering::Release);
-
-            let check_task = dependencies_core_ptr.start.load(Ordering::Acquire);
-            if !check_task.is_null() {
-                // CAS RETRY LOOP
-                let start_waiting_task = loop {
-                    let status = dependencies_core_ptr.start.compare_exchange(
-                        dependencies_core_ptr.start.load(Ordering::Acquire),
-                        null_mut(),
-                        Ordering::AcqRel,
-                        Ordering::Acquire,
-                    );
-
-                    if let Ok(waiting_task) = status {
-                        break waiting_task;
-                    } else {
-                        spin_loop();
-                        continue;
-                    }
-                };
-
-                let end_waiting_task = dependencies_core_ptr
-                    .end
-                    .swap(null_mut(), Ordering::Acquire);
-
-                self.list_core
-                    .task_from_dependencies(start_waiting_task, end_waiting_task);
-            }
-
-            dependencies_core_ptr
-                .drop_ready
-                .store(true, Ordering::Release);
-        }
-
-        drop(task);
-
-        Some(())
     }
 }

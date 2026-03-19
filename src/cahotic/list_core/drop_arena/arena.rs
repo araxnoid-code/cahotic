@@ -3,12 +3,12 @@ use std::{
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
-use crate::{OutputTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask};
+use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
 pub struct Arena<F, FD, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub(crate) start: AtomicPtr<WaitingTask<F, FD, O>>,
@@ -19,7 +19,7 @@ where
 impl<F, FD, O> Arena<F, FD, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn ini() -> Arena<F, FD, O> {

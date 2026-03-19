@@ -6,12 +6,12 @@ use std::{
     },
 };
 
-use crate::{DropArena, ExecTask, OutputTrait, TaskTrait, TaskWithDependenciesTrait, WaitingTask};
+use crate::{DropArena, ExecTask, OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
 pub struct ListCore<F, FD, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     // primary Stack
@@ -33,7 +33,7 @@ where
 impl<F, FD, O> ListCore<F, FD, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn init() -> ListCore<F, FD, O> {
@@ -42,8 +42,6 @@ where
             task: ExecTask::None,
             next: AtomicPtr::new(null_mut()),
             return_ptr: None,
-            dependencies_core_ptr: None,
-            output_dependencies_ptr: None,
         };
 
         let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
