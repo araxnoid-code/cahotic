@@ -8,7 +8,7 @@ pub struct Cahotic<F, FD, O, const N: usize>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: SchedulerTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send + Send + Debug,
+    O: 'static + OutputTrait + Send + Send,
 {
     // List Core
     list_core: Arc<ListCore<F, FD, O>>,
@@ -20,7 +20,7 @@ impl<F, FS, O, const N: usize> Cahotic<F, FS, O, N>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
     FS: SchedulerTrait<O> + Send + 'static + Sync,
-    O: 'static + OutputTrait + Send + Debug + Sync,
+    O: 'static + OutputTrait + Send + Sync,
 {
     pub fn init() -> Cahotic<F, FS, O, N> {
         let list_core = Arc::new(ListCore::<F, FS, O>::init());

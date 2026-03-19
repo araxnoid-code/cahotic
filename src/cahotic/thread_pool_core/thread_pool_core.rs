@@ -18,7 +18,7 @@ pub struct ThreadPoolCore<F, FD, O, const N: usize>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: SchedulerTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send + Debug,
+    O: 'static + OutputTrait + Send,
 {
     // main thread pool
     pub(crate) pool: Vec<JoinHandle<()>>,
@@ -37,7 +37,7 @@ impl<F, FD, O, const N: usize> ThreadPoolCore<F, FD, O, N>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
     FD: SchedulerTrait<O> + Send + 'static + Sync,
-    O: OutputTrait + Send + Debug + Sync,
+    O: OutputTrait + Send + Sync,
 {
     pub fn init(list_core: Arc<ListCore<F, FD, O>>) -> ThreadPoolCore<F, FD, O, N> {
         // handler

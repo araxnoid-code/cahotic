@@ -47,15 +47,4 @@ where
             drop_after_caounter: Box::leak(Box::new(AtomicUsize::new(0))),
         }
     }
-
-    pub(crate) fn task_from_dependencies(
-        &self,
-        start_dep: *mut WaitingTask<F, FD, O>,
-        end_dep: *mut WaitingTask<F, FD, O>,
-    ) {
-        let pre_start_task = self.swap_start.swap(start_dep, Ordering::AcqRel);
-        unsafe {
-            (*pre_start_task).next.store(end_dep, Ordering::Release);
-        }
-    }
 }

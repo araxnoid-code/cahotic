@@ -11,7 +11,7 @@ where
     FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    arena_locate: AtomicBool,
+    pub(crate) arena_locate: AtomicBool,
     pub(crate) arena0: Arena<F, FD, O>,
     pub(crate) arena1: Arena<F, FD, O>,
 }
@@ -60,8 +60,10 @@ where
         let locate = self.arena_locate.load(Ordering::Acquire);
         let locate_target = !locate;
 
-        if self.arena_locate.load(Ordering::Acquire) {
+        if locate_target {
+            println!("now: {} target: {}", locate, locate_target);
             let done_counter = self.arena0.done_counter.load(Ordering::Acquire);
+            println!("done counter: {}", done_counter);
             if done_counter == 0 {
                 self.arena_locate.store(locate_target, Ordering::Release);
                 // Drop
@@ -76,7 +78,9 @@ where
                 None
             }
         } else {
+            println!("now: {} target: {}", locate, locate_target);
             let done_counter = self.arena1.done_counter.load(Ordering::Acquire);
+            println!("done counter: {}", done_counter);
             if done_counter == 0 {
                 self.arena_locate.store(locate_target, Ordering::Release);
                 // Drop

@@ -4,6 +4,8 @@ use std::{
         Arc,
         atomic::{AtomicPtr, AtomicU64, AtomicUsize, Ordering},
     },
+    thread::sleep,
+    time::Duration,
 };
 
 use crate::{DropArena, ExecTask, OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};

@@ -17,7 +17,7 @@ pub struct ThreadUnit<F, FS, O>
 where
     F: TaskTrait<O> + 'static + Send,
     FS: SchedulerTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send + Debug,
+    O: 'static + OutputTrait + Send,
 {
     // thread
     // // unique
@@ -39,7 +39,7 @@ impl<F, FD, O> ThreadUnit<F, FD, O>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: SchedulerTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send + Debug,
+    O: 'static + OutputTrait + Send,
 {
     pub fn running(&mut self) {
         // main loop
@@ -129,7 +129,7 @@ where
                     }
                 } else {
                     let box_task = Box::from_raw(task);
-                    let output = match box_task.task {
+                    match box_task.task {
                         ExecTask::Task(f, done_arena_counter) => {
                             let output = Box::into_raw(Box::new(f.execute()));
                             box_task

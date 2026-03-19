@@ -35,8 +35,8 @@ impl<O> PollWaiting<O> {
                 spin_loop();
             }
 
-            let data_box = self.data_ptr.load(Ordering::Acquire);
-            &*data_box
+            let data = self.data_ptr.load(Ordering::Acquire);
+            &*data
         }
     }
 }
