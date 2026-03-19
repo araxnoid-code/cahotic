@@ -3,7 +3,7 @@ use std::{
     sync::atomic::{AtomicPtr, AtomicUsize},
 };
 
-use crate::{OutputTrait, PollWaiting, SchedulerTrait, TaskTrait};
+use crate::{OutputTrait, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask};
 
 pub enum ExecTask<F, FS, O>
 where
@@ -11,14 +11,18 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    Task(F, &'static AtomicUsize),
-    DropPoll(PollWaiting<O>, &'static AtomicUsize),
-
+    Task(F, *mut AtomicUsize),
+    DropPoll(PollWaiting<O>, *mut AtomicUsize),
     Scheduling(
         FS,
         Vec<&'static AtomicPtr<O>>,
         AtomicUsize,
-        &'static AtomicUsize,
+        *mut AtomicUsize,
+    ),
+    DropArena(
+        *mut WaitingTask<F, FS, O>,
+        *mut WaitingTask<F, FS, O>,
+        *mut AtomicUsize,
     ),
     Output(O),
     None,

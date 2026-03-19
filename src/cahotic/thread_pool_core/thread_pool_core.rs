@@ -67,7 +67,8 @@ where
             let spawn = spawn(move || {
                 let mut thread_unit = ThreadUnit {
                     id,
-                    scheduling_queue: VecDeque::with_capacity(256),
+                    scheduling_queue: VecDeque::with_capacity(1024),
+                    drop_arena_queue: VecDeque::with_capacity(1024),
                     done_task: done_task_clone,
                     join_flag: join_flag_clone,
                     list_core: list_core_clone,
@@ -103,40 +104,40 @@ where
 
     pub fn join(self) {
         // clean
-        loop {
-            if self
-                .list_core
-                .drop_arena
-                .arena0
-                .end
-                .load(Ordering::Acquire)
-                .is_null()
-                && self
-                    .list_core
-                    .drop_arena
-                    .arena1
-                    .end
-                    .load(Ordering::Acquire)
-                    .is_null()
-            {
-                break;
-            }
-            // println!(
-            //     "arena0 {} | arena1 {}",
-            //     self.list_core
-            //         .drop_arena
-            //         .arena0
-            //         .done_counter
-            //         .load(Ordering::Acquire),
-            //     self.list_core
-            //         .drop_arena
-            //         .arena1
-            //         .done_counter
-            //         .load(Ordering::Acquire)
-            // );
-            self.list_core.swap_drop_arena();
-            spin_loop();
-        }
+        // loop {
+        //     if self
+        //         .list_core
+        //         .drop_arena
+        //         .arena
+        //         .end
+        //         .load(Ordering::Acquire)
+        //         .is_null()
+        //         && self
+        //             .list_core
+        //             .drop_arena
+        //             .arena1
+        //             .end
+        //             .load(Ordering::Acquire)
+        //             .is_null()
+        //     {
+        //         break;
+        //     }
+        //     // println!(
+        //     //     "arena0 {} | arena1 {}",
+        //     //     self.list_core
+        //     //         .drop_arena
+        //     //         .arena0
+        //     //         .done_counter
+        //     //         .load(Ordering::Acquire),
+        //     //     self.list_core
+        //     //         .drop_arena
+        //     //         .arena1
+        //     //         .done_counter
+        //     //         .load(Ordering::Acquire)
+        //     // );
+        self.list_core.drop_arena();
+        //     spin_loop();
+        // }
 
         // check, all task done
         loop {

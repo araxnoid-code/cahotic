@@ -34,23 +34,25 @@ impl SchedulerTrait<MyOutput> for MyTask {
 
 fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
-    let running = true;
 
-    while running {
-        let poll1 = cahotic.spawn_task(MyTask::Task(|| {
-            sleep(Duration::from_millis(500));
-            println!("done!");
-            MyOutput::Result(10)
-        }));
+    let poll1 = cahotic.spawn_task(MyTask::Task(|| {
+        sleep(Duration::from_millis(1000));
+        println!("done!");
+        MyOutput::Result(10)
+    }));
 
-        let poll2 = cahotic.spawn_task(MyTask::Task(|| {
-            // sleep(Duration::from_millis(2000));
-            println!("done!");
-            MyOutput::Result(20)
-        }));
+    let poll2 = cahotic.spawn_task(MyTask::Task(|| {
+        sleep(Duration::from_millis(1000));
+        println!("done!");
+        MyOutput::Result(10)
+    }));
 
-        cahotic.swap_drop_arena();
-    }
+    // akan membuat wrapper arena yang terkandung poll1 dan poll2
+    // yang akan dihapus di saat kedua poll selesai
+    cahotic.drop_arena();
+
+    // poll1 dan poll2 berkemungkinan telah dihapus disini
+    // mengakses poll setelah .drop_arena() sangat rawan
 
     cahotic.join();
 }

@@ -22,7 +22,7 @@ where
     pub(crate) end: AtomicPtr<WaitingTask<F, FD, O>>,
 
     // ArenaDrop
-    pub(crate) drop_arena: DropArena<F, FD, O>,
+    pub(crate) swap_drop_arena: DropArena<F, FD, O>,
 
     // handler
     pub(crate) in_task: Arc<AtomicU64>,
@@ -55,7 +55,7 @@ where
             end: AtomicPtr::new(ptr::null_mut()),
 
             // drop
-            drop_arena: DropArena::init(),
+            swap_drop_arena: DropArena::init(),
 
             // handler
             in_task: Arc::new(AtomicU64::new(0)),
@@ -66,12 +66,25 @@ where
         }
     }
 
-    pub fn swap_drop_arena(&self) {
-        let list = self.drop_arena.swap_drop_arena();
-        if let Some((start, end)) = list {
-            let pre_start_task = self.swap_start.swap(start, Ordering::AcqRel);
+    pub fn drop_arena(&self) {
+        let list = self.swap_drop_arena.drop_arena();
+        if let Some((start, end, done_arena_counter)) = list {
+            self.in_task.fetch_add(1, Ordering::Release);
+
+            // create waiting task
+            let waiting_task = WaitingTask {
+                id: self.id_counter.fetch_add(1, Ordering::Release),
+                task: ExecTask::DropArena(start, end, done_arena_counter),
+                next: AtomicPtr::new(null_mut()),
+                return_ptr: None,
+            };
+
+            let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
+            let pre_start_task = self.swap_start.swap(waiting_task_ptr, Ordering::AcqRel);
             unsafe {
-                (*pre_start_task).next.store(end, Ordering::Release);
+                (*pre_start_task)
+                    .next
+                    .store(waiting_task_ptr, Ordering::Release);
             }
         }
     }

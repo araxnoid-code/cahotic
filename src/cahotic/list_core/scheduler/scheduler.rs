@@ -68,7 +68,7 @@ where
     pub fn scheduler_exec(&self, scheduler: Scheduler<FS, O>) -> PollWaiting<O> {
         // update in_task handler
         self.in_task.fetch_add(1, Ordering::Release);
-        self.drop_arena.add_current_done_counter_ptr(1);
+        self.swap_drop_arena.add_current_done_counter_ptr(1);
         // create return_ptr
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
 
@@ -79,7 +79,7 @@ where
                 scheduler.task,
                 scheduler.waiting_poll,
                 scheduler.idx,
-                self.drop_arena.get_current_done_counter_ptr(),
+                self.swap_drop_arena.get_current_done_counter_ptr(),
             ),
             next: AtomicPtr::new(null_mut()),
             return_ptr: Some(return_ptr),

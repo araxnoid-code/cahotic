@@ -13,7 +13,7 @@ where
 {
     pub(crate) start: AtomicPtr<WaitingTask<F, FD, O>>,
     pub(crate) end: AtomicPtr<WaitingTask<F, FD, O>>,
-    pub(crate) done_counter: &'static AtomicUsize,
+    pub(crate) done_counter: AtomicPtr<AtomicUsize>,
 }
 
 impl<F, FD, O> Arena<F, FD, O>
@@ -26,7 +26,7 @@ where
         Self {
             start: AtomicPtr::new(null_mut()),
             end: AtomicPtr::new(null_mut()),
-            done_counter: Box::leak(Box::new(AtomicUsize::new(0))),
+            done_counter: AtomicPtr::new(Box::into_raw(Box::new(AtomicUsize::new(0)))),
         }
     }
 

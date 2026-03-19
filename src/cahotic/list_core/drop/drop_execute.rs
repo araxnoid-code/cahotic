@@ -1,9 +1,9 @@
 use std::{
     ptr::null_mut,
-    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
+    sync::atomic::{AtomicPtr, AtomicU64, AtomicUsize, Ordering},
 };
 
-use crate::{ExecTask, ListCore, OutputTrait, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask};
+use crate::{ExecTask, ListCore, OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
 impl<F, FD, O> ListCore<F, FD, O>
 where
@@ -11,9 +11,42 @@ where
     FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
+    pub(crate) fn drop_arena_execute(
+        &self,
+        waiting_task_ptr: *mut WaitingTask<F, FD, O>,
+        done_task: &AtomicU64,
+    ) -> Result<(), *mut WaitingTask<F, FD, O>> {
+        unsafe {
+            if let ExecTask::DropArena(start, end, done_counter) = (*waiting_task_ptr).task {
+                if (*done_counter).load(Ordering::Acquire) == 0 {
+                    let mut task = end;
+                    loop {
+                        if task.is_null() {
+                            break;
+                        }
+                        let next = (*task).next.load(Ordering::Acquire);
+
+                        let _ = self.drop_execute(task, done_task);
+
+                        task = next;
+                    }
+
+                    drop(Box::from_raw(done_counter));
+
+                    Ok(())
+                } else {
+                    Err(waiting_task_ptr)
+                }
+            } else {
+                panic!()
+            }
+        }
+    }
+
     pub(crate) fn drop_execute(
         &self,
         waiting_task_ptr: *mut WaitingTask<F, FD, O>,
+        done_task: &AtomicU64,
     ) -> Result<(), *mut WaitingTask<F, FD, O>> {
         unsafe {
             if let ExecTask::DropPoll(poll_waiting, _) = &(*waiting_task_ptr).task {
@@ -33,6 +66,8 @@ where
 
                     // drop task
                     drop(Box::from_raw(waiting_task_ptr));
+
+                    done_task.fetch_add(1, Ordering::Release);
                     Ok(())
                 } else {
                     Err(waiting_task_ptr)

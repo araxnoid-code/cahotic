@@ -24,6 +24,7 @@ where
     pub(crate) id: usize,
     // // drop-stack
     pub(crate) scheduling_queue: VecDeque<*mut WaitingTask<F, FS, O>>,
+    pub(crate) drop_arena_queue: VecDeque<*mut WaitingTask<F, FS, O>>,
 
     // share
     // // thread_pool
@@ -77,13 +78,24 @@ where
                                 .unwrap()
                                 .store(output, Ordering::Release);
 
-                            done_arena_counter.fetch_sub(1, Ordering::Release);
+                            (*done_arena_counter).fetch_sub(1, Ordering::Release);
                             self.done_task.fetch_add(1, Ordering::SeqCst);
                             spin_loop();
                         }
                     }
                 } else {
                     self.scheduling_queue.push_back(schedul_waiting_task);
+                }
+            }
+
+            if let Some(drop_arena_ptr) = self.drop_arena_queue.pop_front() {
+                if let Err(waiting_task) = self
+                    .list_core
+                    .drop_arena_execute(drop_arena_ptr, &*&self.done_task)
+                {
+                    self.drop_arena_queue.push_back(waiting_task);
+                } else {
+                    self.done_task.fetch_add(1, Ordering::Release);
                 }
             }
 
@@ -96,14 +108,15 @@ where
 
             // execute
             unsafe {
-                if let ExecTask::DropPoll(_, _) = (*task).task {
-                    if let Err(waiting_task) = self.list_core.drop_execute(task) {
-                        self.scheduling_queue.push_back(waiting_task);
+                if let ExecTask::DropArena(_, _, _) = (*task).task {
+                    // println!("drop {} arena", self.id);
+                    if let Err(waiting_task) =
+                        self.list_core.drop_arena_execute(task, &*self.done_task)
+                    {
+                        self.drop_arena_queue.push_back(waiting_task);
                     } else {
                         self.done_task.fetch_add(1, Ordering::Release);
                     }
-
-                    spin_loop();
                 } else if let ExecTask::Scheduling(_, _, _, _) = (*task).task {
                     if let Some(waiting_task) = self.list_core.scheduling_handler(task) {
                         let box_task = Box::from_raw(waiting_task);
@@ -120,7 +133,7 @@ where
                                 .unwrap()
                                 .store(output, Ordering::Release);
 
-                            done_arena_counter.fetch_sub(1, Ordering::Release);
+                            (*done_arena_counter).fetch_sub(1, Ordering::Release);
                             self.done_task.fetch_add(1, Ordering::SeqCst);
                             spin_loop();
                         }
@@ -137,11 +150,12 @@ where
                                 .unwrap()
                                 .store(output, Ordering::Release);
 
-                            done_arena_counter.fetch_sub(1, Ordering::Release);
+                            (*done_arena_counter).fetch_sub(1, Ordering::Release);
                         }
                         ExecTask::Scheduling(_, _, _, _) => panic!(),
                         ExecTask::Output(_) => panic!(),
                         ExecTask::DropPoll(_, _) => panic!(),
+                        ExecTask::DropArena(_, _, _) => panic!(),
                         ExecTask::None => panic!(),
                     };
 
