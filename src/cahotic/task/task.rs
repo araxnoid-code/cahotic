@@ -5,17 +5,17 @@ use std::{
 
 use crate::{OutputTrait, PollWaiting, TaskDependencies, TaskTrait, TaskWithDependenciesTrait};
 
-pub enum ExecTask<F, FD, O>
+pub enum ExecTask<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: TaskWithDependenciesTrait<O> + Send + 'static,
+    FS: TaskWithDependenciesTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     Task(F, &'static AtomicUsize),
-    TaskWithDependencies(FD, &'static AtomicUsize),
+    TaskWithDependencies(FS, &'static AtomicUsize),
     // DROP
     DropPoll(PollWaiting<O>, &'static AtomicUsize),
-    DropDependencies(TaskDependencies<F, FD, O>, &'static AtomicUsize),
+    DropDependencies(TaskDependencies<F, FS, O>, &'static AtomicUsize),
 
     // DROPAFTER
     DropPollAfter(
@@ -23,11 +23,18 @@ where
         (&'static AtomicPtr<O>, &'static AtomicUsize),
     ),
     DropDependenciesAfter(
-        TaskDependencies<F, FD, O>,
+        TaskDependencies<F, FS, O>,
         (&'static AtomicPtr<O>, &'static AtomicUsize),
     ),
     // DROPAFTER
     // DROP
+    // SCHEDING
+    Scheduling(
+        FS,
+        Vec<&'static AtomicPtr<O>>,
+        AtomicUsize,
+        &'static AtomicUsize,
+    ),
     Output(O),
     None,
 }

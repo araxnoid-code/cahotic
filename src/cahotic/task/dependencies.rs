@@ -70,13 +70,13 @@ where
     }
 }
 
-use crate::{OutputTrait, PollWaiting, TaskTrait, WaitingTask};
+use crate::{OutputTrait, PollWaiting, SchedulerVec, TaskTrait, WaitingTask};
 
 pub trait TaskWithDependenciesTrait<O>
 where
     O: OutputTrait + 'static + Send,
 {
-    fn execute(&self, dependencies: &'static Vec<PollWaiting<O>>) -> O;
+    fn execute(&self, dependencies: SchedulerVec<O>) -> O;
 
     fn is_with_dependencies(&self) -> bool {
         true

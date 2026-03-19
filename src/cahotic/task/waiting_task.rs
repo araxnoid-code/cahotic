@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicPtr, AtomicUsize};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize};
 
 use crate::{ExecTask, PollWaiting, TaskDependenciesCore, TaskWithDependenciesTrait};
 
@@ -13,6 +13,15 @@ where
     fn is_with_dependencies() -> bool {
         false
     }
+}
+
+// scheduler
+pub enum ScedulerExec<O>
+where
+    O: 'static + OutputTrait + Send,
+{
+    Exec(AtomicPtr<O>),
+    Sceduler(AtomicPtr<O>, &'static AtomicUsize),
 }
 
 // WaitingTask

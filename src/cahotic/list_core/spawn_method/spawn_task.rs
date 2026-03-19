@@ -1,6 +1,6 @@
 use std::{
     ptr::null_mut,
-    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering},
 };
 
 use crate::{
@@ -19,6 +19,7 @@ where
         self.drop_arena.add_current_done_counter_ptr(1);
         // create return_ptr
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
+
         // dependencies
         // create waiting task
         let waiting_task = WaitingTask {
