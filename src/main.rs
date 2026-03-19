@@ -55,22 +55,25 @@ fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 
     for i in 0..10 {
-        let poll1 = cahotic.spawn_task(MyTask::Exec(|| {
-            // sleep(Duration::from_millis(1000));
-            // println!("task 1 done");
-            MyOutput::None
-        }));
-        let poll2 = cahotic.spawn_task(MyTask::Exec(|| {
-            // sleep(Duration::from_millis(1500));
-            // println!("task 2 done");
-            MyOutput::None
-        }));
-        let poll2 = cahotic.spawn_task(MyTask::Exec(|| {
-            // sleep(Duration::from_millis(2000));
-            // println!("task 3 done");
-            MyOutput::None
-        }));
-        // swap and drop
+        let list_task = vec![
+            MyTask::Exec(|| {
+                sleep(Duration::from_millis(550));
+                // println!("task 1 done");
+                MyOutput::Number(10)
+            }),
+            MyTask::Exec(|| {
+                // println!("task 2 done");
+                MyOutput::Number(20)
+            }),
+            MyTask::Exec(|| {
+                sleep(Duration::from_millis(1250));
+                // println!("task 3 done");
+                MyOutput::Number(30)
+            }),
+        ];
+
+        let dependencies = cahotic.spwan_dependencies(list_task);
+
         cahotic.swap_drop_arena();
     }
 
@@ -80,23 +83,23 @@ fn main() {
 
 // for i in 0..1 {
 //     let list_task = vec![
-//         MyTask::Exec(|| {
-//             sleep(Duration::from_millis(550));
-//             // println!("task 1 done");
-//             MyOutput::Number(10)
-//         }),
-//         MyTask::Exec(|| {
-//             // println!("task 2 done");
-//             MyOutput::Number(20)
-//         }),
-//         MyTask::Exec(|| {
-//             sleep(Duration::from_millis(1250));
-//             // println!("task 3 done");
-//             MyOutput::Number(30)
-//         }),
-//     ];
+//     MyTask::Exec(|| {
+//         sleep(Duration::from_millis(550));
+//         // println!("task 1 done");
+//         MyOutput::Number(10)
+//     }),
+//     MyTask::Exec(|| {
+//         // println!("task 2 done");
+//         MyOutput::Number(20)
+//     }),
+//     MyTask::Exec(|| {
+//         sleep(Duration::from_millis(1250));
+//         // println!("task 3 done");
+//         MyOutput::Number(30)
+//     }),
+// ];
 
-//     let dependencies = cahotic.spwan_dependencies(list_task);
+// let dependencies = cahotic.spwan_dependencies(list_task);
 
 //     let task_4 = cahotic.spawn_task_with_dependencies(
 //         MyTask::ExecWithDependencies(|dependencies| {

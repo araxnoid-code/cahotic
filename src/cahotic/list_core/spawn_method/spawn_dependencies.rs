@@ -54,6 +54,11 @@ where
                     .store(waiting_task_ptr, Ordering::Release);
             }
 
+            self.drop_pool(PollWaiting {
+                data_ptr: return_ptr,
+                drop_after_caounter: Box::leak(Box::new(AtomicUsize::new(0))),
+            });
+
             waiting_output.push(PollWaiting {
                 data_ptr: return_ptr,
                 drop_after_caounter: Box::leak(Box::new(AtomicUsize::new(0))),
@@ -62,6 +67,11 @@ where
 
         let waiting_output_leak: &'static mut Vec<PollWaiting<O>> =
             Box::leak(Box::new(waiting_output));
+
+        self.drop_dependencies(TaskDependencies {
+            waiting_list: waiting_output_leak,
+            task_dependencies_ptr: task_dependencies_core_ptr,
+        });
 
         TaskDependencies {
             waiting_list: waiting_output_leak,

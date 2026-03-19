@@ -14,7 +14,6 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub fn drop_pool(&self, poll_waiting: PollWaiting<O>) {
-        // update in_task handler
         self.in_task.fetch_add(1, Ordering::Release);
         // create return_ptr
 
