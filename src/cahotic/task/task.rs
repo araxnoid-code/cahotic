@@ -11,19 +11,19 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    Task(F, *mut AtomicUsize),
-    DropPoll(PollWaiting<O>, *mut AtomicUsize),
+    Task(F, &'static AtomicUsize),
+    DropPoll(PollWaiting<O>, &'static AtomicUsize),
     Scheduling(
         FS,
         Vec<&'static AtomicPtr<O>>,
         AtomicUsize,
-        *mut AtomicUsize,
+        &'static AtomicUsize,
     ),
-    DropArena(
-        *mut WaitingTask<F, FS, O>,
-        *mut WaitingTask<F, FS, O>,
-        *mut AtomicUsize,
-    ),
+    // DropArena(
+    //     *mut WaitingTask<F, FS, O>,
+    //     *mut WaitingTask<F, FS, O>,
+    //     &'static AtomicUsize,
+    // ),
     Output(O),
     None,
 }

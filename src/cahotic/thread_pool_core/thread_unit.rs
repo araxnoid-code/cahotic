@@ -108,16 +108,17 @@ where
 
             // execute
             unsafe {
-                if let ExecTask::DropArena(_, _, _) = (*task).task {
-                    // println!("drop {} arena", self.id);
-                    if let Err(waiting_task) =
-                        self.list_core.drop_arena_execute(task, &*self.done_task)
-                    {
-                        self.drop_arena_queue.push_back(waiting_task);
-                    } else {
-                        self.done_task.fetch_add(1, Ordering::Release);
-                    }
-                } else if let ExecTask::Scheduling(_, _, _, _) = (*task).task {
+                // if let ExecTask::DropArena(_, _, _) = (*task).task {
+                //     // println!("drop {} arena", self.id);
+                //     if let Err(waiting_task) =
+                //         self.list_core.drop_arena_execute(task, &*self.done_task)
+                //     {
+                //         self.drop_arena_queue.push_back(waiting_task);
+                //     } else {
+                //         self.done_task.fetch_add(1, Ordering::Release);
+                //     }
+                // } else
+                if let ExecTask::Scheduling(_, _, _, _) = (*task).task {
                     if let Some(waiting_task) = self.list_core.scheduling_handler(task) {
                         let box_task = Box::from_raw(waiting_task);
 
@@ -155,7 +156,7 @@ where
                         ExecTask::Scheduling(_, _, _, _) => panic!(),
                         ExecTask::Output(_) => panic!(),
                         ExecTask::DropPoll(_, _) => panic!(),
-                        ExecTask::DropArena(_, _, _) => panic!(),
+                        // ExecTask::DropArena(_, _, _) => panic!(),
                         ExecTask::None => panic!(),
                     };
 

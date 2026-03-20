@@ -17,29 +17,30 @@ where
         done_task: &AtomicU64,
     ) -> Result<(), *mut WaitingTask<F, FD, O>> {
         unsafe {
-            if let ExecTask::DropArena(start, end, done_counter) = (*waiting_task_ptr).task {
-                if (*done_counter).load(Ordering::Acquire) == 0 {
-                    let mut task = end;
-                    loop {
-                        if task.is_null() {
-                            break;
-                        }
-                        let next = (*task).next.load(Ordering::Acquire);
+            // if let ExecTask::DropArena(start, end, done_counter) = (*waiting_task_ptr).task {
+            //     if (*done_counter).load(Ordering::Acquire) == 0 {
+            //         let mut task = end;
+            //         loop {
+            //             if task.is_null() {
+            //                 break;
+            //             }
+            //             let next = (*task).next.load(Ordering::Acquire);
 
-                        let _ = self.drop_execute(task, done_task);
+            //             let _ = self.drop_execute(task, done_task);
 
-                        task = next;
-                    }
+            //             task = next;
+            //         }
 
-                    drop(Box::from_raw(done_counter));
+            //         drop(Box::from_raw(done_counter));
 
-                    Ok(())
-                } else {
-                    Err(waiting_task_ptr)
-                }
-            } else {
-                panic!()
-            }
+            //         Ok(())
+            //     } else {
+            //         Err(waiting_task_ptr)
+            //     }
+            // } else {
+            //     panic!()
+            // }
+            panic!()
         }
     }
 
@@ -60,9 +61,9 @@ where
                         poll_waiting.data_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
                     ));
 
-                    drop(Box::from_raw(
-                        poll_waiting.drop_after_caounter as *const AtomicUsize as *mut AtomicUsize,
-                    ));
+                    // drop(Box::from_raw(
+                    //     poll_waiting.drop_after_caounter as *const AtomicUsize as *mut AtomicUsize,
+                    // ));
 
                     // drop task
                     drop(Box::from_raw(waiting_task_ptr));

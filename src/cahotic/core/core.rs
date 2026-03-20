@@ -54,7 +54,8 @@ where
         //     self.thread_pool_core.done_task.load(Ordering::Acquire),
         //     in_task - self.thread_pool_core.done_task.load(Ordering::Acquire)
         // );
-        self.list_core.spawn_task(f)
+        // self.list_core.spawn_task(f)
+        panic!()
     }
 
     pub fn set_limit(&mut self, limit: u64) {
@@ -62,11 +63,11 @@ where
     }
 
     pub fn drop_poll(&self, pool_waiting: PollWaiting<O>) {
-        self.list_core.drop_pool(pool_waiting);
+        // self.list_core.drop_pool(pool_waiting);
     }
 
     pub fn drop_arena(&self) {
-        self.list_core.drop_arena();
+        // self.list_core.drop_arena();
 
         // println!(
         //     "{}/{}",
@@ -77,7 +78,8 @@ where
     }
 
     pub fn scheduler_exec(&self, scheduler: Scheduler<FS, O>) -> PollWaiting<O> {
-        self.list_core.scheduler_exec(scheduler)
+        // self.list_core.scheduler_exec(scheduler)
+        panic!()
     }
 
     // pub fn spwan_dependencies<D>(&self, dependencies: D) -> TaskDependencies<F, FD, O>

@@ -9,7 +9,6 @@ use std::{
         mpsc,
     },
     thread::{self, JoinHandle, sleep, spawn},
-    time::Duration,
 };
 
 use crate::{ListCore, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit, WaitingTask};
@@ -135,7 +134,7 @@ where
         //     //         .done_counter
         //     //         .load(Ordering::Acquire)
         //     // );
-        self.list_core.drop_arena();
+        // self.list_core.drop_arena();
         //     spin_loop();
         // }
 

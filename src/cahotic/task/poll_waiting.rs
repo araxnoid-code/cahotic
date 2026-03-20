@@ -8,7 +8,6 @@ where
     O: 'static,
 {
     pub(crate) data_ptr: &'static AtomicPtr<O>,
-    pub(crate) drop_after_caounter: &'static AtomicUsize,
 }
 
 impl<O> PollWaiting<O> {

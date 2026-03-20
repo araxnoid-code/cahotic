@@ -8,28 +8,30 @@ use std::{
     time::Duration,
 };
 
-use crate::{DropArena, ExecTask, OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
+use crate::{DropArena, ExecTask, OutputTrait, PacketCore, SchedulerTrait, TaskTrait, WaitingTask};
 
-pub struct ListCore<F, FD, O>
+pub struct ListCore<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: SchedulerTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     // primary Stack
     pub(crate) id_counter: AtomicU64,
-    pub(crate) start: AtomicPtr<WaitingTask<F, FD, O>>,
-    pub(crate) end: AtomicPtr<WaitingTask<F, FD, O>>,
+    pub(crate) start: AtomicPtr<WaitingTask<F, FS, O>>,
+    pub(crate) end: AtomicPtr<WaitingTask<F, FS, O>>,
 
     // ArenaDrop
-    pub(crate) swap_drop_arena: DropArena<F, FD, O>,
+    pub(crate) swap_drop_arena: DropArena<F, FS, O>,
 
     // handler
     pub(crate) in_task: Arc<AtomicU64>,
 
     // Swap Stack
-    pub(crate) swap_start: AtomicPtr<WaitingTask<F, FD, O>>,
-    pub(crate) swap_end: AtomicPtr<WaitingTask<F, FD, O>>,
+    pub(crate) swap_start: AtomicPtr<WaitingTask<F, FS, O>>,
+    pub(crate) swap_end: AtomicPtr<WaitingTask<F, FS, O>>,
+    // packet
+    pub(crate) packet_core: PacketCore<F, FS, O, 8>,
 }
 
 impl<F, FD, O> ListCore<F, FD, O>
@@ -63,31 +65,33 @@ where
             // Swap Stack
             swap_start: AtomicPtr::new(waiting_task_ptr),
             swap_end: AtomicPtr::new(waiting_task_ptr),
+            // packet
+            packet_core: PacketCore::init(),
         }
     }
 
-    pub fn drop_arena(&self) {
-        let list = self.swap_drop_arena.drop_arena();
-        if let Some((start, end, done_arena_counter)) = list {
-            self.in_task.fetch_add(1, Ordering::Release);
+    // pub fn drop_arena(&self) {
+    //     let list = self.swap_drop_arena.drop_arena();
+    //     if let Some((start, end, done_arena_counter)) = list {
+    //         self.in_task.fetch_add(1, Ordering::Release);
 
-            // create waiting task
-            let waiting_task = WaitingTask {
-                id: self.id_counter.fetch_add(1, Ordering::Release),
-                task: ExecTask::DropArena(start, end, done_arena_counter),
-                next: AtomicPtr::new(null_mut()),
-                return_ptr: None,
-            };
+    //         // create waiting task
+    //         let waiting_task = WaitingTask {
+    //             id: self.id_counter.fetch_add(1, Ordering::Release),
+    //             task: ExecTask::DropArena(start, end, done_arena_counter),
+    //             next: AtomicPtr::new(null_mut()),
+    //             return_ptr: None,
+    //         };
 
-            let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
-            let pre_start_task = self.swap_start.swap(waiting_task_ptr, Ordering::AcqRel);
-            unsafe {
-                (*pre_start_task)
-                    .next
-                    .store(waiting_task_ptr, Ordering::Release);
-            }
-        }
-    }
+    //         let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
+    //         let pre_start_task = self.swap_start.swap(waiting_task_ptr, Ordering::AcqRel);
+    //         unsafe {
+    //             (*pre_start_task)
+    //                 .next
+    //                 .store(waiting_task_ptr, Ordering::Release);
+    //         }
+    //     }
+    // }
 
     pub fn get_waiting_task_from_primary_stack(
         &self,

@@ -21,29 +21,25 @@ where
         // create waiting task
         let waiting_task = WaitingTask {
             id: self.id_counter.fetch_add(1, Ordering::Release),
-            task: ExecTask::Task(task, self.swap_drop_arena.get_current_done_counter_ptr()),
+            task: ExecTask::Task(task, self.packet_core.get_current_done_counter()),
             next: AtomicPtr::new(null_mut()),
             return_ptr: Some(return_ptr),
         };
 
-        let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
+        self.packet_core.add_task(waiting_task);
+
+        // let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
 
         // swap start with new waiting task
-        let pre_start_task = self.swap_start.swap(waiting_task_ptr, Ordering::AcqRel);
-        unsafe {
-            (*pre_start_task)
-                .next
-                .store(waiting_task_ptr, Ordering::Release);
-        }
-
-        self.drop_pool(PollWaiting {
-            data_ptr: return_ptr,
-            drop_after_caounter: Box::leak(Box::new(AtomicUsize::new(0))),
-        });
+        // let pre_start_task = self.swap_start.swap(waiting_task_ptr, Ordering::AcqRel);
+        // unsafe {
+        //     (*pre_start_task)
+        //         .next
+        //         .store(waiting_task_ptr, Ordering::Release);
+        // }
 
         PollWaiting {
             data_ptr: return_ptr,
-            drop_after_caounter: Box::leak(Box::new(AtomicUsize::new(0))),
         }
     }
 }
