@@ -12,31 +12,22 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub fn spawn_task(&self, task: F) -> PollWaiting<O> {
-        // update in_task handler
+        // update handler
         self.in_task.fetch_add(1, Ordering::Release);
-        self.swap_drop_arena.add_current_done_counter_ptr(1);
+        self.packet_core
+            .fetch_add_current_done_counter(1, Ordering::Release);
         // create return_ptr
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
 
         // create waiting task
         let waiting_task = WaitingTask {
             id: self.id_counter.fetch_add(1, Ordering::Release),
-            task: ExecTask::Task(task, self.packet_core.get_current_done_counter()),
+            task: ExecTask::Task(task, self.packet_core.load_current_done_counter()),
             next: AtomicPtr::new(null_mut()),
             return_ptr: Some(return_ptr),
         };
 
-        self.packet_core.add_task(waiting_task);
-
-        // let waiting_task_ptr = Box::into_raw(Box::new(waiting_task));
-
-        // swap start with new waiting task
-        // let pre_start_task = self.swap_start.swap(waiting_task_ptr, Ordering::AcqRel);
-        // unsafe {
-        //     (*pre_start_task)
-        //         .next
-        //         .store(waiting_task_ptr, Ordering::Release);
-        // }
+        self.packet_core.add_task(waiting_task, &self.in_task);
 
         PollWaiting {
             data_ptr: return_ptr,

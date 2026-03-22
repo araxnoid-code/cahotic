@@ -31,7 +31,7 @@ where
     pub(crate) swap_start: AtomicPtr<WaitingTask<F, FS, O>>,
     pub(crate) swap_end: AtomicPtr<WaitingTask<F, FS, O>>,
     // packet
-    pub(crate) packet_core: PacketCore<F, FS, O, 8>,
+    pub packet_core: PacketCore<F, FS, O, 8>,
 }
 
 impl<F, FD, O> ListCore<F, FD, O>
@@ -92,6 +92,10 @@ where
     //         }
     //     }
     // }
+
+    pub fn submit_packet(&self) {
+        let _ = self.packet_core.submit_packet(&self.in_task);
+    }
 
     pub fn get_waiting_task_from_primary_stack(
         &self,

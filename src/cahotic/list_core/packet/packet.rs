@@ -9,6 +9,12 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
+    // id
+    pub(crate) id: usize,
+    pub(crate) epoch: u64,
+    // flag
+    pub(crate) guest_counter: AtomicUsize,
+    //
     pub(crate) packet: [Option<WaitingTask<F, FS, O>>; PN],
     pub(crate) tail: AtomicUsize,
     pub(crate) head: AtomicUsize,
@@ -21,11 +27,14 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn init() -> Packet<F, FS, O, PN> {
+    pub fn init(id: usize) -> Packet<F, FS, O, PN> {
         let packet = array::from_fn(|_| None);
 
         Self {
+            id,
+            epoch: 0,
             packet,
+            guest_counter: AtomicUsize::new(0),
             head: AtomicUsize::new(0),
             tail: AtomicUsize::new(0),
             done_counter: Box::leak(Box::new(AtomicUsize::new(0))),

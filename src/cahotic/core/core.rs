@@ -17,7 +17,7 @@ where
     O: 'static + OutputTrait + Send + Send,
 {
     // List Core
-    list_core: Arc<ListCore<F, FD, O>>,
+    pub list_core: Arc<ListCore<F, FD, O>>,
     limit: u64,
     // thread pool Core
     thread_pool_core: ThreadPoolCore<F, FD, O, N>,
@@ -54,8 +54,11 @@ where
         //     self.thread_pool_core.done_task.load(Ordering::Acquire),
         //     in_task - self.thread_pool_core.done_task.load(Ordering::Acquire)
         // );
-        // self.list_core.spawn_task(f)
-        panic!()
+        self.list_core.spawn_task(f)
+    }
+
+    pub fn submit_packet(&self) {
+        self.list_core.submit_packet();
     }
 
     pub fn set_limit(&mut self, limit: u64) {

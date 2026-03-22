@@ -72,6 +72,7 @@ where
                     join_flag: join_flag_clone,
                     list_core: list_core_clone,
                     reprt_handler: reprt_handler_clone,
+                    packet_drop: VecDeque::with_capacity(64),
                 };
 
                 // tx_clone.send(thread_unit.clone()).unwrap();
@@ -81,7 +82,8 @@ where
                 }
 
                 // running
-                thread_unit.running();
+                // thread_unit.running();
+                thread_unit.running_packet();
             });
 
             // RX from MPSC

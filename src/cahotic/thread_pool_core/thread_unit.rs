@@ -34,6 +34,9 @@ where
 
     // // list core
     pub(crate) list_core: Arc<ListCore<F, FS, O>>,
+
+    // packet
+    pub(crate) packet_drop: VecDeque<usize>,
 }
 
 impl<F, FD, O> ThreadUnit<F, FD, O>

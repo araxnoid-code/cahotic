@@ -13,11 +13,17 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    packet_list: AtomicPtr<[Packet<F, FS, O, PN>; 64]>,
-    use_packet_handler: AtomicBool,
-    use_packet: AtomicU32,
-    empty_bitmap: AtomicU64,
-    ready_bitmap: AtomicU64,
+    pub packet_list: AtomicPtr<[Packet<F, FS, O, PN>; 64]>,
+    pub packet_len: usize,
+    //
+    pub empty_bitmap: AtomicU64,
+    pub ready_bitmap: AtomicU64,
+    //
+    pub use_packet_handler: AtomicBool,
+    pub use_packet: AtomicU32,
+    //
+    pub exec_packet: AtomicUsize,
+    pub exec_packet_handler: AtomicBool,
 }
 
 impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
@@ -28,13 +34,19 @@ where
 {
     pub fn init() -> PacketCore<F, FS, O, PN> {
         Self {
-            packet_list: AtomicPtr::new(Box::into_raw(Box::new(array::from_fn(|_| {
-                Packet::init()
+            packet_list: AtomicPtr::new(Box::into_raw(Box::new(array::from_fn(|i| {
+                Packet::init(i)
             })))),
+            packet_len: PN,
+            //
             empty_bitmap: AtomicU64::new(u64::MAX),
             ready_bitmap: AtomicU64::new(0),
+            //
             use_packet_handler: AtomicBool::new(false),
             use_packet: AtomicU32::new(0),
+            //
+            exec_packet_handler: AtomicBool::new(false),
+            exec_packet: AtomicUsize::new(0),
         }
     }
 
@@ -55,7 +67,7 @@ where
         }
     }
 
-    pub fn get_current_done_counter(&self) -> &'static AtomicUsize {
+    pub fn load_current_done_counter(&self) -> &'static AtomicUsize {
         unsafe {
             let use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
             let packet = &(*self.packet_list.load(Ordering::Acquire))[use_packet_idx];
@@ -63,7 +75,15 @@ where
         }
     }
 
-    pub fn add_task(&self, waiting_task: WaitingTask<F, FS, O>) {
+    pub fn fetch_add_current_done_counter(&self, val: usize, order: Ordering) {
+        unsafe {
+            let use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
+            let packet = &(*self.packet_list.load(Ordering::Acquire))[use_packet_idx];
+            packet.done_counter.fetch_add(val, order);
+        }
+    }
+
+    pub fn add_task(&self, waiting_task: WaitingTask<F, FS, O>, in_task: &AtomicU64) {
         unsafe {
             if !self.use_packet_handler.load(Ordering::Acquire) {
                 self.set_use_packet();
@@ -71,8 +91,8 @@ where
 
             let use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
             if use_packet_idx >= PN {
-                let _ = self.submit_packet();
-                self.add_task(waiting_task);
+                let _ = self.submit_packet(in_task);
+                self.add_task(waiting_task, in_task);
             } else {
                 let packet = &mut (*self.packet_list.load(Ordering::Acquire))[use_packet_idx];
                 let idx = packet.head.fetch_add(1, Ordering::Release);
@@ -81,11 +101,12 @@ where
         }
     }
 
-    pub fn submit_packet(&self) -> Result<(), ()> {
+    pub fn submit_packet(&self, in_task: &AtomicU64) -> Result<(), ()> {
         if !self.use_packet_handler.swap(false, Ordering::Release) {
             return Err(());
         }
 
+        in_task.fetch_add(1, Ordering::Release);
         let use_packet_idx = self.use_packet.load(Ordering::Acquire);
         let mask = 1_u64 << use_packet_idx;
         self.ready_bitmap.fetch_or(mask, Ordering::Release);
