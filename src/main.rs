@@ -8,6 +8,7 @@ use std::{thread::sleep, time::Duration};
 
 use cahotic::{OutputTrait, SchedulerTrait, SchedulerVec, TaskTrait};
 
+#[derive(Debug)]
 enum MyOutput {
     Result(i32),
     None,
@@ -40,25 +41,51 @@ impl SchedulerTrait<MyOutput> for MyTask {
 fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 10, 32>::init();
 
-    for i in 0..32 {
-        let poll1 = cahotic.spawn_task(MyTask::Task(|| {
-            sleep(Duration::from_millis(1000));
-            MyOutput::None
-        }));
-
-        let poll2 = cahotic.spawn_task(MyTask::Task(|| {
-            sleep(Duration::from_millis(500));
-            MyOutput::None
-        }));
-
-        let mut scheduler = Scheduler::init(MyTask::Schedule(|_| MyOutput::None));
-
-        scheduler.after(&poll1);
-        scheduler.after(&poll2);
-        cahotic.scheduler_exec(scheduler);
-    }
+    let poll1 = cahotic.spawn_task(MyTask::Task(|| {
+        sleep(Duration::from_millis(1000));
+        MyOutput::Result(10)
+    }));
 
     cahotic.submit_packet();
+
+    let poll2 = cahotic.spawn_task(MyTask::Task(|| {
+        sleep(Duration::from_millis(2000));
+        MyOutput::Result(20)
+    }));
+
+    cahotic.submit_packet();
+
+    let mut scheduler = Scheduler::init(MyTask::Schedule(|scheduler_vec| {
+        sleep(Duration::from_millis(1500));
+
+        if let (Some(MyOutput::Result(poll1)), Some(MyOutput::Result(poll2))) =
+            (scheduler_vec.get(0), scheduler_vec.get(1))
+        {
+            MyOutput::Result((*poll1 + *poll2) * 2)
+        } else {
+            MyOutput::None
+        }
+    }));
+
+    cahotic.submit_packet();
+
+    scheduler.after(&poll1);
+    scheduler.after(&poll2);
+    let poll3 = cahotic.scheduler_exec(scheduler);
+
+    cahotic.submit_packet();
+
+    // let mut scheduler = Scheduler::init(MyTask::Schedule(|scheduler_vec| {
+    //     sleep(Duration::from_millis(250));
+    //     let poll3 = scheduler_vec.get(0).unwrap();
+    //     println!("{:?}", poll3);
+    //     MyOutput::None
+    // }));
+
+    // scheduler.after(&poll3);
+    // cahotic.scheduler_exec(scheduler);
+
+    // cahotic.submit_packet();
 
     cahotic.join();
 }

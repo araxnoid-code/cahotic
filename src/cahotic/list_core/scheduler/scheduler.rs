@@ -77,7 +77,6 @@ where
         &self,
         waiting_task: &mut WaitingTask<F, FS, O>,
     ) -> Result<(), ()> {
-        // unsafe {
         if let ExecTask::Scheduling(_, waiting_poll, idx, _) = &mut waiting_task.task {
             if waiting_poll.len() == 0 {
                 return Ok(());
@@ -97,6 +96,5 @@ where
         } else {
             panic!()
         }
-        // }
     }
 }

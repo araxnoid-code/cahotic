@@ -5,7 +5,7 @@ use std::{
 
 use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
-#[repr(align(64))]
+#[repr(align(64), C)]
 pub struct Packet<F, FS, O, const PN: usize>
 where
     F: TaskTrait<O> + Send + 'static,

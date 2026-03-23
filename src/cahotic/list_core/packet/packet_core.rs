@@ -113,7 +113,6 @@ where
                 let waiting_task = WaitingTask {
                     id: id_counter,
                     task: ExecTask::Task(task),
-                    next: AtomicPtr::new(null_mut()),
                     return_ptr: Some(return_ptr),
                 };
                 packet.task[idx] = Some(waiting_task);
@@ -161,7 +160,6 @@ where
                         scheduler.idx,
                         use_packet_idx,
                     ),
-                    next: AtomicPtr::new(null_mut()),
                     return_ptr: Some(return_ptr),
                 };
                 packet.task[idx] = Some(waiting_task);

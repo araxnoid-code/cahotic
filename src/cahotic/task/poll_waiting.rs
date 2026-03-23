@@ -1,6 +1,6 @@
 use std::{
     hint::spin_loop,
-    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
+    sync::atomic::{AtomicPtr, Ordering},
 };
 
 pub struct PollWaiting<O>

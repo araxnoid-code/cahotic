@@ -97,12 +97,6 @@ where
         // check, all task done
         self.list_core.submit_packet();
         loop {
-            // println!(
-            //     "{}/{}",
-            //     self.list_core.in_task.load(Ordering::SeqCst),
-            //     self.done_task.load(Ordering::SeqCst)
-            // );
-            // sleep(Duration::from_millis(50));
             if self.list_core.in_task.load(Ordering::Acquire)
                 <= self.done_task.load(Ordering::Acquire)
             {
@@ -116,13 +110,5 @@ where
         for join_handle in self.pool {
             join_handle.join().unwrap();
         }
-
-        // for (_, thread) in (*self.pool.load(Ordering::Acquire)).iter_mut() {
-        //     // thread.clean();
-        // }
-
-        // clean pool
-        // let pool_ptr = self.pool.swap(null_mut(), Ordering::AcqRel);
-        // drop(Box::from_raw(pool_ptr));
     }
 }

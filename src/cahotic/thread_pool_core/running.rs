@@ -23,6 +23,7 @@ where
                 let packet = &mut self.list_core.load_packet_list()[packet_idx];
                 if packet.done_counter.load(Ordering::Acquire) == 0 {
                     // drop
+                    println!("drop");
                     for i in 0..packet.head.load(Ordering::Acquire) {
                         if let Some(ptr) = packet.drop[i].take() {
                             unsafe {

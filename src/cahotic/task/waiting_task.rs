@@ -33,14 +33,5 @@ where
 {
     pub(crate) id: u64,
     pub(crate) task: ExecTask<F, FS, O>,
-    pub(crate) next: AtomicPtr<WaitingTask<F, FS, O>>,
     pub(crate) return_ptr: Option<&'static AtomicPtr<O>>,
 }
-
-// impl<F, FS, O> Copy for WaitingTask<F, FS, O>
-// where
-//     F: TaskTrait<O> + Send + 'static,
-//     FS: SchedulerTrait<O> + Send + 'static,
-//     O: 'static + OutputTrait + Send,
-// {
-// }
