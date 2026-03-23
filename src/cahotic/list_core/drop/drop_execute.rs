@@ -5,17 +5,17 @@ use std::{
 
 use crate::{ExecTask, ListCore, OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
-impl<F, FD, O> ListCore<F, FD, O>
+impl<F, FS, O, const PN: usize> ListCore<F, FS, O, PN>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: SchedulerTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub(crate) fn drop_arena_execute(
         &self,
-        waiting_task_ptr: *mut WaitingTask<F, FD, O>,
+        waiting_task_ptr: *mut WaitingTask<F, FS, O>,
         done_task: &AtomicU64,
-    ) -> Result<(), *mut WaitingTask<F, FD, O>> {
+    ) -> Result<(), *mut WaitingTask<F, FS, O>> {
         unsafe {
             // if let ExecTask::DropArena(start, end, done_counter) = (*waiting_task_ptr).task {
             //     if (*done_counter).load(Ordering::Acquire) == 0 {
@@ -46,11 +46,11 @@ where
 
     pub(crate) fn drop_execute(
         &self,
-        waiting_task_ptr: *mut WaitingTask<F, FD, O>,
+        waiting_task_ptr: *mut WaitingTask<F, FS, O>,
         done_task: &AtomicU64,
-    ) -> Result<(), *mut WaitingTask<F, FD, O>> {
+    ) -> Result<(), *mut WaitingTask<F, FS, O>> {
         unsafe {
-            if let ExecTask::DropPoll(poll_waiting, _) = &(*waiting_task_ptr).task {
+            if let ExecTask::DropPoll(poll_waiting) = &(*waiting_task_ptr).task {
                 if let Some(_) = poll_waiting.get() {
                     // drop pool
                     let output = poll_waiting.data_ptr.swap(null_mut(), Ordering::AcqRel);

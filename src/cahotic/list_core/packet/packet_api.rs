@@ -2,10 +2,10 @@ use std::sync::atomic::Ordering;
 
 use crate::{ListCore, OutputTrait, Packet, SchedulerTrait, TaskTrait};
 
-impl<F, FD, O> ListCore<F, FD, O>
+impl<F, FS, O, const PN: usize> ListCore<F, FS, O, PN>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: SchedulerTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn load_packet_exec_status(&self) -> bool {
@@ -24,7 +24,7 @@ where
         self.packet_core.exec_packet.store(val, order);
     }
 
-    pub fn load_packet_list(&self) -> &mut [Packet<F, FD, O, 8>; 64] {
+    pub fn load_packet_list(&self) -> &mut [Packet<F, FS, O, PN>; 64] {
         unsafe {
             let packet = self.packet_core.packet_list.load(Ordering::Acquire);
             &mut (*packet)

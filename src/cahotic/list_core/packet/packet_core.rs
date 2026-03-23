@@ -1,11 +1,14 @@
 use std::{
     array,
     hint::spin_loop,
+    ptr::null_mut,
     sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, AtomicUsize, Ordering},
     u64,
 };
 
-use crate::{OutputTrait, Packet, SchedulerTrait, TaskTrait, WaitingTask};
+use crate::{
+    ExecTask, OutputTrait, Packet, PollWaiting, Scheduler, SchedulerTrait, TaskTrait, WaitingTask,
+};
 
 pub struct PacketCore<F, FS, O, const PN: usize>
 where
@@ -19,7 +22,6 @@ where
     pub empty_bitmap: AtomicU64,
     pub ready_bitmap: AtomicU64,
     //
-    pub use_packet_handler: AtomicBool,
     pub use_packet: AtomicU32,
     //
     pub exec_packet: AtomicUsize,
@@ -43,8 +45,7 @@ where
             empty_bitmap: AtomicU64::new(u64::MAX),
             ready_bitmap: AtomicU64::new(0),
             //
-            use_packet_handler: AtomicBool::new(false),
-            use_packet: AtomicU32::new(0),
+            use_packet: AtomicU32::new(64),
             //
             exec_packet_handler: AtomicBool::new(false),
             exec_packet: AtomicUsize::new(0),
@@ -61,15 +62,16 @@ where
                 packet.head.store(0, Ordering::Release);
             }
             self.use_packet.store(index, Ordering::Release);
-            self.use_packet_handler.store(true, Ordering::Release);
         } else {
             // waiting here
-            while self.empty_bitmap.load(Ordering::Acquire).trailing_zeros() != 64 {
+            while self.empty_bitmap.load(Ordering::Acquire).trailing_zeros() == 64 {
                 spin_loop();
             }
 
-            self.use_packet.store(index, Ordering::Release);
-            self.use_packet_handler.store(true, Ordering::Release);
+            self.use_packet.store(
+                self.empty_bitmap.load(Ordering::Acquire).trailing_zeros(),
+                Ordering::Release,
+            );
         }
     }
 
@@ -89,31 +91,99 @@ where
         }
     }
 
-    pub fn add_task(&self, waiting_task: WaitingTask<F, FS, O>, in_task: &AtomicU64) {
+    pub fn add_task(&self, task: F, id_counter: u64, in_task: &AtomicU64) -> PollWaiting<O> {
         unsafe {
-            if !self.use_packet_handler.load(Ordering::Acquire) {
+            let mut use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
+            if use_packet_idx == 64 {
                 self.set_use_packet();
+                use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
             }
 
-            let use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
-            if use_packet_idx >= PN {
-                let _ = self.submit_packet(in_task);
-                self.add_task(waiting_task, in_task);
+            let packet = &mut (*self.packet_list.load(Ordering::Acquire))[use_packet_idx];
+            let idx = packet.head.fetch_add(1, Ordering::Release);
+            if idx + 1 < PN {
+                // update handler
+                in_task.fetch_add(1, Ordering::Release);
+                self.fetch_add_current_done_counter(1, Ordering::Release);
+                // create return_ptr
+                let return_ptr: &'static AtomicPtr<O> =
+                    Box::leak(Box::new(AtomicPtr::new(null_mut())));
+
+                // create waiting task
+                let waiting_task = WaitingTask {
+                    id: id_counter,
+                    task: ExecTask::Task(task),
+                    next: AtomicPtr::new(null_mut()),
+                    return_ptr: Some(return_ptr),
+                };
+                packet.task[idx] = Some(waiting_task);
+                packet.drop[idx] = Some(return_ptr);
+
+                PollWaiting {
+                    data_ptr: return_ptr,
+                }
             } else {
-                let packet = &mut (*self.packet_list.load(Ordering::Acquire))[use_packet_idx];
-                let idx = packet.head.fetch_add(1, Ordering::Release);
-                packet.packet[idx] = Some(waiting_task);
+                let _ = self.submit_packet(in_task);
+                self.add_task(task, id_counter, in_task)
+            }
+        }
+    }
+
+    pub fn add_shceduler(
+        &self,
+        scheduler: Scheduler<FS, O>,
+        id_counter: u64,
+        in_task: &AtomicU64,
+    ) -> PollWaiting<O> {
+        unsafe {
+            let mut use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
+            if use_packet_idx == 64 {
+                self.set_use_packet();
+                use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
+            }
+
+            let packet = &mut (*self.packet_list.load(Ordering::Acquire))[use_packet_idx];
+            let idx = packet.head.fetch_add(1, Ordering::Release);
+            if idx + 1 < PN {
+                // update in_task handler
+                in_task.fetch_add(1, Ordering::Release);
+                self.fetch_add_current_done_counter(1, Ordering::Release);
+                // create return_ptr
+                let return_ptr: &'static AtomicPtr<O> =
+                    Box::leak(Box::new(AtomicPtr::new(null_mut())));
+
+                // create waiting task
+                let waiting_task = WaitingTask {
+                    id: id_counter,
+                    task: ExecTask::Scheduling(
+                        scheduler.task,
+                        scheduler.waiting_poll,
+                        scheduler.idx,
+                        use_packet_idx,
+                    ),
+                    next: AtomicPtr::new(null_mut()),
+                    return_ptr: Some(return_ptr),
+                };
+                packet.task[idx] = Some(waiting_task);
+                packet.drop[idx] = Some(return_ptr);
+
+                PollWaiting {
+                    data_ptr: return_ptr,
+                }
+            } else {
+                let _ = self.submit_packet(in_task);
+                self.add_shceduler(scheduler, id_counter, in_task)
             }
         }
     }
 
     pub fn submit_packet(&self, in_task: &AtomicU64) -> Result<(), ()> {
-        if !self.use_packet_handler.swap(false, Ordering::Release) {
+        let use_packet_idx = self.use_packet.load(Ordering::Acquire);
+        if use_packet_idx == 64 {
             return Err(());
         }
 
         in_task.fetch_add(1, Ordering::Release);
-        let use_packet_idx = self.use_packet.load(Ordering::Acquire);
         unsafe {
             let packet = &(*self.packet_list.load(Ordering::Acquire))[use_packet_idx as usize];
             packet.tail.store(0, Ordering::Release);
@@ -121,6 +191,7 @@ where
         let mask = 1_u64 << use_packet_idx;
         self.ready_bitmap.fetch_or(mask, Ordering::Release);
         self.empty_bitmap.fetch_and(!mask, Ordering::Release);
+        self.use_packet.store(64, Ordering::Release);
 
         Ok(())
     }

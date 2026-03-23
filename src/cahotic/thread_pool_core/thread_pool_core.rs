@@ -13,7 +13,7 @@ use std::{
 
 use crate::{ListCore, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit, WaitingTask};
 
-pub struct ThreadPoolCore<F, FD, O, const N: usize>
+pub struct ThreadPoolCore<F, FD, O, const N: usize, const PN: usize>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: SchedulerTrait<O> + Send + 'static,
@@ -28,17 +28,17 @@ where
     pub(crate) join_flag: Arc<AtomicBool>,
 
     // list core
-    list_core: Arc<ListCore<F, FD, O>>,
+    list_core: Arc<ListCore<F, FD, O, PN>>,
     // global thread pool list
 }
 
-impl<F, FD, O, const N: usize> ThreadPoolCore<F, FD, O, N>
+impl<F, FD, O, const N: usize, const PN: usize> ThreadPoolCore<F, FD, O, N, PN>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
     FD: SchedulerTrait<O> + Send + 'static + Sync,
     O: OutputTrait + Send + Sync,
 {
-    pub fn init(list_core: Arc<ListCore<F, FD, O>>) -> ThreadPoolCore<F, FD, O, N> {
+    pub fn init(list_core: Arc<ListCore<F, FD, O, PN>>) -> ThreadPoolCore<F, FD, O, N, PN> {
         // handler
         let reprt_handler = Arc::new(AtomicBool::new(true));
         let join_flag = Arc::new(AtomicBool::new(false));
@@ -50,14 +50,8 @@ where
         // block
         let block = Arc::new(AtomicBool::new(false));
 
-        // MPSC
-        // let (tx, rx) = mpsc::channel();
         for id in 0..N {
-            // MPSC
-            // let tx_clone = tx.clone();
-
             // clone
-            let reprt_handler_clone = reprt_handler.clone();
             let join_flag_clone = join_flag.clone();
             let done_task_clone = done_task.clone();
             let list_core_clone = list_core.clone();
@@ -67,29 +61,22 @@ where
                 let mut thread_unit = ThreadUnit {
                     id,
                     scheduling_queue: VecDeque::with_capacity(1024),
-                    drop_arena_queue: VecDeque::with_capacity(1024),
                     done_task: done_task_clone,
                     join_flag: join_flag_clone,
                     list_core: list_core_clone,
-                    reprt_handler: reprt_handler_clone,
-                    packet_drop: VecDeque::with_capacity(64),
+                    packet_drop_queue: VecDeque::with_capacity(64),
                     exec_packet_idx: 64,
                     masking_packet_idx: 64,
                 };
-
-                // tx_clone.send(thread_unit.clone()).unwrap();
 
                 while !block_clone.load(Ordering::Acquire) {
                     spin_loop();
                 }
 
                 // running
-                // thread_unit.running();
                 thread_unit.running_packet();
             });
 
-            // RX from MPSC
-            // let shared_thread = rx.recv().unwrap();
             // saving
             pool.push(spawn);
         }
@@ -107,42 +94,8 @@ where
 
     pub fn join(self) {
         // clean
-        // loop {
-        //     if self
-        //         .list_core
-        //         .drop_arena
-        //         .arena
-        //         .end
-        //         .load(Ordering::Acquire)
-        //         .is_null()
-        //         && self
-        //             .list_core
-        //             .drop_arena
-        //             .arena1
-        //             .end
-        //             .load(Ordering::Acquire)
-        //             .is_null()
-        //     {
-        //         break;
-        //     }
-        //     // println!(
-        //     //     "arena0 {} | arena1 {}",
-        //     //     self.list_core
-        //     //         .drop_arena
-        //     //         .arena0
-        //     //         .done_counter
-        //     //         .load(Ordering::Acquire),
-        //     //     self.list_core
-        //     //         .drop_arena
-        //     //         .arena1
-        //     //         .done_counter
-        //     //         .load(Ordering::Acquire)
-        //     // );
-        // self.list_core.drop_arena();
-        //     spin_loop();
-        // }
-
         // check, all task done
+        self.list_core.submit_packet();
         loop {
             // println!(
             //     "{}/{}",

@@ -10,7 +10,7 @@ use std::{
 
 use crate::{DropArena, ExecTask, OutputTrait, PacketCore, SchedulerTrait, TaskTrait, WaitingTask};
 
-pub struct ListCore<F, FS, O>
+pub struct ListCore<F, FS, O, const PN: usize>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
@@ -31,16 +31,16 @@ where
     pub(crate) swap_start: AtomicPtr<WaitingTask<F, FS, O>>,
     pub(crate) swap_end: AtomicPtr<WaitingTask<F, FS, O>>,
     // packet
-    pub packet_core: PacketCore<F, FS, O, 8>,
+    pub packet_core: PacketCore<F, FS, O, PN>,
 }
 
-impl<F, FD, O> ListCore<F, FD, O>
+impl<F, FD, O, const PN: usize> ListCore<F, FD, O, PN>
 where
     F: TaskTrait<O> + Send + 'static,
     FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn init() -> ListCore<F, FD, O> {
+    pub fn init() -> ListCore<F, FD, O, PN> {
         let waiting_task = WaitingTask {
             id: 0,
             task: ExecTask::None,

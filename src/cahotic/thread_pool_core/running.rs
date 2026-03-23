@@ -1,24 +1,39 @@
-use std::{hint::spin_loop, sync::atomic::Ordering};
+use std::{
+    f64::consts,
+    hint::spin_loop,
+    ptr::null_mut,
+    sync::atomic::{AtomicPtr, Ordering},
+};
 
-use crate::{ExecTask, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
+use crate::{ExecTask, OutputTrait, SchedulerTrait, SchedulerVec, TaskTrait, ThreadUnit};
 
-impl<F, FD, O> ThreadUnit<F, FD, O>
+impl<F, FD, O, const PN: usize> ThreadUnit<F, FD, O, PN>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    //
     pub fn running_packet(&mut self) {
         loop {
             if self.join_flag.load(Ordering::Acquire) {
                 break;
             }
 
-            if let Some(packet_idx) = self.packet_drop.pop_front() {
+            if let Some(packet_idx) = self.packet_drop_queue.pop_front() {
                 let packet = &mut self.list_core.load_packet_list()[packet_idx];
                 if packet.done_counter.load(Ordering::Acquire) == 0 {
                     // drop
+                    for i in 0..packet.head.load(Ordering::Acquire) {
+                        if let Some(ptr) = packet.drop[i].take() {
+                            unsafe {
+                                drop(Box::from_raw(ptr.swap(null_mut(), Ordering::Release)));
+                                drop(Box::from_raw(
+                                    ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
+                                ));
+                            }
+                        }
+                    }
+
                     // drop
                     self.done_task.fetch_add(1, Ordering::Release);
                     self.list_core
@@ -26,7 +41,31 @@ where
                         .empty_bitmap
                         .fetch_or(1_u64 << packet_idx, Ordering::Release);
                 } else {
-                    self.packet_drop.push_back(packet_idx);
+                    self.packet_drop_queue.push_back(packet_idx);
+                }
+            }
+
+            if let Some(mut schedule_task) = self.scheduling_queue.pop_front() {
+                if let Ok(()) = self.list_core.scheduling_handler(&mut schedule_task) {
+                    match schedule_task.task {
+                        ExecTask::Scheduling(f, scheduler_vec, _, packet_idx) => {
+                            let output = Box::into_raw(Box::new(
+                                f.execute(SchedulerVec { vec: scheduler_vec }),
+                            ));
+                            schedule_task
+                                .return_ptr
+                                .unwrap()
+                                .store(output, Ordering::Release);
+
+                            let packet = &mut self.list_core.load_packet_list()[packet_idx];
+                            packet.done_counter.fetch_sub(1, Ordering::Release);
+                            self.done_task.fetch_add(1, Ordering::Release);
+                            spin_loop();
+                        }
+                        _ => panic!(),
+                    };
+                } else {
+                    self.scheduling_queue.push_back(schedule_task);
                 }
             }
 
@@ -40,28 +79,32 @@ where
             let packet = &mut self.list_core.load_packet_list()[packet_idx];
 
             let tail = packet.tail.fetch_add(1, Ordering::Release);
-            if tail + 1 == self.list_core.packet_core.packet_len {
+            if tail + 1 == PN {
                 let masking = !(1_u64 << packet_idx);
                 self.list_core
                     .packet_core
                     .ready_bitmap
                     .fetch_and(masking, Ordering::Release);
 
-                self.packet_drop.push_back(packet_idx);
-            } else if tail + 1 > self.list_core.packet_core.packet_len {
+                self.packet_drop_queue.push_back(packet_idx);
+            } else if tail + 1 > PN {
+                self.exec_packet_idx = 64;
                 spin_loop();
                 continue;
             }
 
-            if let Some(task) = packet.packet[tail].take() {
+            if let Some(task) = packet.task[tail].take() {
                 match task.task {
-                    ExecTask::Task(f, done_arena_counter) => {
+                    ExecTask::Task(f) => {
                         let output = Box::into_raw(Box::new(f.execute()));
                         task.return_ptr.unwrap().store(output, Ordering::Release);
 
-                        (*done_arena_counter).fetch_sub(1, Ordering::Release);
+                        packet.done_counter.fetch_sub(1, Ordering::Release);
                         self.done_task.fetch_add(1, Ordering::Release);
                         spin_loop();
+                    }
+                    ExecTask::Scheduling(_, _, _, _) => {
+                        self.scheduling_queue.push_back(task);
                     }
                     _ => panic!(),
                 };
@@ -88,122 +131,4 @@ where
         self.masking_packet_idx = index as usize;
     }
     //
-
-    pub fn _running_packet(&mut self) {
-        loop {
-            if self.join_flag.load(Ordering::Acquire) {
-                break;
-            }
-
-            if let Some(packet_idx) = self.packet_drop.pop_front() {
-                let packet = &mut self.list_core.load_packet_list()[packet_idx];
-                if packet.done_counter.load(Ordering::Acquire) == 0 {
-                    // drop
-                    // waiting
-                    // drop
-                    self.done_task.fetch_add(1, Ordering::Release);
-                    self.list_core
-                        .packet_core
-                        .empty_bitmap
-                        .fetch_or(1_u64 << packet_idx, Ordering::Release);
-                } else {
-                    self.packet_drop.push_back(packet_idx);
-                }
-            }
-
-            if let Some(()) = self.restock_exec_packet() {
-                let index = self.list_core.load_packet_exec_index();
-                let packet = &mut self.list_core.load_packet_list()[index];
-                let len = self.list_core.packet_core.packet_len;
-                let tail = packet.tail.fetch_add(1, Ordering::Release);
-                if tail + 1 == len {
-                    self.list_core
-                        .store_packet_exec_status(false, Ordering::Release);
-                    self.packet_drop.push_back(index);
-                } else if tail + 1 > len {
-                    spin_loop();
-                    continue;
-                }
-
-                if let Some(task) = packet.packet[tail].take() {
-                    match task.task {
-                        ExecTask::Task(f, done_arena_counter) => {
-                            let output = Box::into_raw(Box::new(f.execute()));
-                            task.return_ptr.unwrap().store(output, Ordering::Release);
-
-                            (*done_arena_counter).fetch_sub(1, Ordering::Release);
-                            self.done_task.fetch_add(1, Ordering::Release);
-                            spin_loop();
-                        }
-                        _ => panic!(),
-                    };
-                } else {
-                    spin_loop();
-                    continue;
-                }
-            }
-        }
-    }
-
-    pub fn restock_exec_packet(&self) -> Option<()> {
-        if !self.list_core.load_packet_exec_status() {
-            let is_reprt = self.reprt_handler.swap(false, Ordering::AcqRel);
-            if is_reprt {
-                if self.list_core.load_packet_exec_status() {
-                    self.reprt_handler.store(true, Ordering::Release);
-                    spin_loop();
-                    return None;
-                }
-
-                let mut ready_bitmap = self
-                    .list_core
-                    .packet_core
-                    .ready_bitmap
-                    .load(Ordering::Acquire);
-
-                let masking = self.list_core.packet_core.masking.load(Ordering::Acquire);
-                if masking != 64 {
-                    let masking_on = !(1_u64 << masking);
-                    let masking_before = !((1_u64 << masking) - 1_u64);
-                    ready_bitmap &= masking_on;
-                    ready_bitmap &= masking_before;
-                }
-
-                let index = ready_bitmap.trailing_zeros();
-                if index >= 64 {
-                    // empty
-                    self.list_core.store_packet_exec_index(0, Ordering::Release);
-                    self.list_core
-                        .packet_core
-                        .masking
-                        .store(64, Ordering::Release);
-                    self.reprt_handler.store(true, Ordering::Release);
-                    spin_loop();
-                    return None;
-                }
-
-                self.list_core
-                    .packet_core
-                    .masking
-                    .store(index as usize, Ordering::Release);
-
-                self.list_core
-                    .packet_core
-                    .ready_bitmap
-                    .fetch_and(!(1_u64 << index), Ordering::Release);
-
-                self.list_core
-                    .store_packet_exec_index(index as usize, Ordering::Release);
-                self.list_core
-                    .store_packet_exec_status(true, Ordering::Release);
-                self.reprt_handler.store(true, Ordering::Release);
-                spin_loop();
-                return Some(());
-            } else {
-                return None;
-            }
-        } else {
-            Some(())
-        }
-    }
 }
