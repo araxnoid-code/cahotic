@@ -73,6 +73,8 @@ where
                     list_core: list_core_clone,
                     reprt_handler: reprt_handler_clone,
                     packet_drop: VecDeque::with_capacity(64),
+                    exec_packet_idx: 64,
+                    masking_packet_idx: 64,
                 };
 
                 // tx_clone.send(thread_unit.clone()).unwrap();

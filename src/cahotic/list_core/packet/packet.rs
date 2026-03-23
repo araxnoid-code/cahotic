@@ -1,4 +1,7 @@
-use std::{array, sync::atomic::AtomicUsize};
+use std::{
+    array,
+    sync::atomic::{AtomicBool, AtomicUsize},
+};
 
 use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
@@ -12,8 +15,6 @@ where
     // id
     pub(crate) id: usize,
     pub(crate) epoch: u64,
-    // flag
-    pub(crate) guest_counter: AtomicUsize,
     //
     pub(crate) packet: [Option<WaitingTask<F, FS, O>>; PN],
     pub(crate) tail: AtomicUsize,
@@ -34,7 +35,6 @@ where
             id,
             epoch: 0,
             packet,
-            guest_counter: AtomicUsize::new(0),
             head: AtomicUsize::new(0),
             tail: AtomicUsize::new(0),
             done_counter: Box::leak(Box::new(AtomicUsize::new(0))),

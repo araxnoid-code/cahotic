@@ -24,6 +24,7 @@ where
     //
     pub exec_packet: AtomicUsize,
     pub exec_packet_handler: AtomicBool,
+    pub masking: AtomicUsize,
 }
 
 impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
@@ -47,6 +48,7 @@ where
             //
             exec_packet_handler: AtomicBool::new(false),
             exec_packet: AtomicUsize::new(0),
+            masking: AtomicUsize::new(64),
         }
     }
 
@@ -54,6 +56,10 @@ where
         let empty_bitmap = self.empty_bitmap.load(Ordering::Acquire);
         let index = empty_bitmap.trailing_zeros();
         if index != 64 {
+            unsafe {
+                let packet = &(*self.packet_list.load(Ordering::Acquire))[index as usize];
+                packet.head.store(0, Ordering::Release);
+            }
             self.use_packet.store(index, Ordering::Release);
             self.use_packet_handler.store(true, Ordering::Release);
         } else {
@@ -108,6 +114,10 @@ where
 
         in_task.fetch_add(1, Ordering::Release);
         let use_packet_idx = self.use_packet.load(Ordering::Acquire);
+        unsafe {
+            let packet = &(*self.packet_list.load(Ordering::Acquire))[use_packet_idx as usize];
+            packet.tail.store(0, Ordering::Release);
+        }
         let mask = 1_u64 << use_packet_idx;
         self.ready_bitmap.fetch_or(mask, Ordering::Release);
         self.empty_bitmap.fetch_and(!mask, Ordering::Release);

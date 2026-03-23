@@ -37,6 +37,8 @@ where
 
     // packet
     pub(crate) packet_drop: VecDeque<usize>,
+    pub(crate) exec_packet_idx: usize,
+    pub(crate) masking_packet_idx: usize,
 }
 
 impl<F, FD, O> ThreadUnit<F, FD, O>
