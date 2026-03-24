@@ -204,8 +204,7 @@ where
                     .store(use_packet_idx, Ordering::Release);
 
                 // create return_ptr
-                let return_ptr: &'static AtomicPtr<O> =
-                    Box::leak(Box::new(AtomicPtr::new(null_mut())));
+                let return_ptr: &'static AtomicPtr<O> = schedule.return_ptr;
 
                 let waiting_task = if let ScheduleTask::Task(task) = schedule.task {
                     WaitingTask {
@@ -239,7 +238,6 @@ where
                 };
 
                 // create waiting task
-
                 packet.task[idx] = Some(waiting_task);
                 packet.drop[idx] = Some((return_ptr, Some(schedule.candidate_packet_idx)));
 

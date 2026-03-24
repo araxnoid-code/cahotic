@@ -7,9 +7,7 @@ use std::{
     },
 };
 
-use crate::{
-    ExecTask, ListCore, OutputTrait, SchedulerTrait, SchedulerVec, TaskTrait, WaitingTask,
-};
+use crate::{ExecTask, ListCore, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait, WaitingTask};
 
 pub struct ThreadUnit<F, FS, O, const PN: usize>
 where

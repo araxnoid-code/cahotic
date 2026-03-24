@@ -1,8 +1,8 @@
-use crate::{OutputTrait, SchedulerVec};
+use crate::{OutputTrait, ScheduleVec};
 
 pub trait SchedulerTrait<O>
 where
     O: OutputTrait + 'static + Send,
 {
-    fn execute(&self, scheduler_vec: SchedulerVec<O>) -> O;
+    fn execute(&self, scheduler_vec: ScheduleVec<O>) -> O;
 }

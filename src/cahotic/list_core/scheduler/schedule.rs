@@ -4,16 +4,19 @@ use std::{
     usize,
 };
 
-use crate::{ExecTask, ListCore, OutputTrait, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask};
+use crate::{
+    ExecTask, ListCore, OutputTrait, PollWaiting, ScheduleUnit, SchedulerTrait, TaskTrait,
+    WaitingTask,
+};
 
-pub struct SchedulerVec<O>
+pub struct ScheduleVec<O>
 where
     O: 'static + OutputTrait + Send,
 {
     pub(crate) vec: Vec<&'static AtomicPtr<O>>,
 }
 
-impl<O> SchedulerVec<O>
+impl<O> ScheduleVec<O>
 where
     O: 'static + OutputTrait + Send,
 {
@@ -65,9 +68,9 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn scheduler_exec(&self, scheduler: Schedule<FS, O>) -> PollWaiting<O> {
-        self.packet_core._add_shceduler(
-            scheduler,
+    pub fn scheduler_exec(&self, schedule: ScheduleUnit<F, FS, O>) -> PollWaiting<O> {
+        self.packet_core.add_schedule(
+            schedule,
             self.id_counter.fetch_add(1, Ordering::Release),
             &self.in_task,
         )

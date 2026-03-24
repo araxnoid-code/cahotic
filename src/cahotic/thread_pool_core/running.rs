@@ -5,7 +5,7 @@ use std::{
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
-use crate::{ExecTask, OutputTrait, SchedulerTrait, SchedulerVec, TaskTrait, ThreadUnit};
+use crate::{ExecTask, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait, ThreadUnit};
 
 impl<F, FD, O, const PN: usize> ThreadUnit<F, FD, O, PN>
 where
@@ -22,7 +22,6 @@ where
             if let Some(packet_idx) = self.packet_drop_queue.pop_front() {
                 let packet = &mut self.list_core.load_packet_list()[packet_idx];
                 if packet.done_counter.load(Ordering::Acquire) == 0 {
-                    // drop
                     for i in 0..packet.head.load(Ordering::Acquire) {
                         if let Some((return_ptr, candidate_ptr)) = packet.drop[i].take() {
                             unsafe {
@@ -63,7 +62,7 @@ where
                             candidate_packet_idx,
                         ) => {
                             let output = Box::into_raw(Box::new(
-                                f.execute(SchedulerVec { vec: scheduler_vec }),
+                                f.execute(ScheduleVec { vec: scheduler_vec }),
                             ));
                             schedule_task
                                 .return_ptr
