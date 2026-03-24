@@ -5,10 +5,10 @@ use std::{
 
 use crate::{ExecTask, ListCore, OutputTrait, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask};
 
-impl<F, FD, O, const PN: usize> ListCore<F, FD, O, PN>
+impl<F, FS, O, const PN: usize> ListCore<F, FS, O, PN>
 where
     F: TaskTrait<O> + Send + 'static,
-    FD: SchedulerTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn spawn_task(&self, task: F) -> PollWaiting<O> {

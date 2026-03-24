@@ -2,7 +2,7 @@ use std::{
     f64::consts,
     hint::spin_loop,
     ptr::null_mut,
-    sync::atomic::{AtomicPtr, Ordering},
+    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
 use crate::{ExecTask, OutputTrait, SchedulerTrait, SchedulerVec, TaskTrait, ThreadUnit};
@@ -23,14 +23,20 @@ where
                 let packet = &mut self.list_core.load_packet_list()[packet_idx];
                 if packet.done_counter.load(Ordering::Acquire) == 0 {
                     // drop
-                    println!("drop");
                     for i in 0..packet.head.load(Ordering::Acquire) {
-                        if let Some(ptr) = packet.drop[i].take() {
+                        if let Some((return_ptr, candidate_ptr)) = packet.drop[i].take() {
                             unsafe {
-                                drop(Box::from_raw(ptr.swap(null_mut(), Ordering::Release)));
                                 drop(Box::from_raw(
-                                    ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
+                                    return_ptr.swap(null_mut(), Ordering::Release),
                                 ));
+                                drop(Box::from_raw(
+                                    return_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
+                                ));
+                                if let Some(candidate_ptr) = candidate_ptr {
+                                    drop(Box::from_raw(
+                                        candidate_ptr as *const AtomicUsize as *mut AtomicUsize,
+                                    ));
+                                }
                             }
                         }
                     }
@@ -49,7 +55,13 @@ where
             if let Some(mut schedule_task) = self.scheduling_queue.pop_front() {
                 if let Ok(()) = self.list_core.scheduling_handler(&mut schedule_task) {
                     match schedule_task.task {
-                        ExecTask::Scheduling(f, scheduler_vec, _, packet_idx) => {
+                        ExecTask::Scheduling(
+                            f,
+                            scheduler_vec,
+                            _,
+                            packet_idx,
+                            candidate_packet_idx,
+                        ) => {
                             let output = Box::into_raw(Box::new(
                                 f.execute(SchedulerVec { vec: scheduler_vec }),
                             ));
@@ -58,8 +70,15 @@ where
                                 .unwrap()
                                 .store(output, Ordering::Release);
 
+                            // update clean
                             let packet = &mut self.list_core.load_packet_list()[packet_idx];
                             packet.done_counter.fetch_sub(1, Ordering::Release);
+                            // clean schedule packet
+                            for idx in candidate_packet_idx {
+                                let packet = &mut self.list_core.load_packet_list()
+                                    [idx.load(Ordering::Acquire)];
+                                packet.done_counter.fetch_sub(1, Ordering::Release);
+                            }
                             self.done_task.fetch_add(1, Ordering::Release);
                             spin_loop();
                         }
@@ -104,7 +123,7 @@ where
                         self.done_task.fetch_add(1, Ordering::Release);
                         spin_loop();
                     }
-                    ExecTask::Scheduling(_, _, _, _) => {
+                    ExecTask::Scheduling(_, _, _, _, _) => {
                         self.scheduling_queue.push_back(task);
                     }
                     _ => panic!(),

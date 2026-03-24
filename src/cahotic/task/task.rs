@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::{AtomicPtr, AtomicUsize};
 
 use crate::{OutputTrait, PollWaiting, SchedulerTrait, TaskTrait};
 
@@ -9,8 +9,13 @@ where
     O: 'static + OutputTrait + Send,
 {
     Task(F),
-    DropPoll(PollWaiting<O>),
-    Scheduling(FS, Vec<&'static AtomicPtr<O>>, usize, usize),
+    Scheduling(
+        FS,
+        Vec<&'static AtomicPtr<O>>,
+        usize,
+        usize,
+        Vec<&'static AtomicUsize>,
+    ),
     Output(O),
     None,
 }

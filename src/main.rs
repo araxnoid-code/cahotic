@@ -1,4 +1,4 @@
-use cahotic::{Cahotic, Scheduler};
+use cahotic::{Cahotic, Schedule};
 use std::{
     sync::atomic::{AtomicIsize, AtomicU32},
     u64,
@@ -55,7 +55,7 @@ fn main() {
 
     cahotic.submit_packet();
 
-    let mut scheduler = Scheduler::init(MyTask::Schedule(|scheduler_vec| {
+    let mut scheduler = Schedule::init(MyTask::Schedule(|scheduler_vec| {
         sleep(Duration::from_millis(1500));
 
         if let (Some(MyOutput::Result(poll1)), Some(MyOutput::Result(poll2))) =

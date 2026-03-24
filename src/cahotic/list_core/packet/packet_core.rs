@@ -7,7 +7,8 @@ use std::{
 };
 
 use crate::{
-    ExecTask, OutputTrait, Packet, PollWaiting, Scheduler, SchedulerTrait, TaskTrait, WaitingTask,
+    ExecTask, OutputTrait, Packet, PollWaiting, Schedule, ScheduleTask, ScheduleUnit,
+    SchedulerTrait, TaskTrait, WaitingTask,
 };
 
 pub struct PacketCore<F, FS, O, const PN: usize>
@@ -116,7 +117,7 @@ where
                     return_ptr: Some(return_ptr),
                 };
                 packet.task[idx] = Some(waiting_task);
-                packet.drop[idx] = Some(return_ptr);
+                packet.drop[idx] = Some((return_ptr, None));
 
                 PollWaiting {
                     data_ptr: return_ptr,
@@ -128,9 +129,9 @@ where
         }
     }
 
-    pub fn add_shceduler(
+    pub fn _add_shceduler(
         &self,
-        scheduler: Scheduler<FS, O>,
+        scheduler: Schedule<FS, O>,
         id_counter: u64,
         in_task: &AtomicU64,
     ) -> PollWaiting<O> {
@@ -159,18 +160,95 @@ where
                         scheduler.waiting_poll,
                         scheduler.idx,
                         use_packet_idx,
+                        vec![],
                     ),
                     return_ptr: Some(return_ptr),
                 };
                 packet.task[idx] = Some(waiting_task);
-                packet.drop[idx] = Some(return_ptr);
+                packet.drop[idx] = Some((return_ptr, None));
 
                 PollWaiting {
                     data_ptr: return_ptr,
                 }
             } else {
                 let _ = self.submit_packet(in_task);
-                self.add_shceduler(scheduler, id_counter, in_task)
+                self._add_shceduler(scheduler, id_counter, in_task)
+            }
+        }
+    }
+
+    pub fn add_schedule(
+        &self,
+        schedule: ScheduleUnit<F, FS, O>,
+        id_counter: u64,
+        in_task: &AtomicU64,
+    ) -> PollWaiting<O> {
+        unsafe {
+            let mut use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
+            if use_packet_idx == 64 {
+                self.set_use_packet();
+                use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
+            }
+
+            let packet = &mut (*self.packet_list.load(Ordering::Acquire))[use_packet_idx];
+            let idx = packet.head.fetch_add(1, Ordering::Release);
+            if idx + 1 < PN {
+                // update in_task handler
+                in_task.fetch_add(1, Ordering::Release);
+                self.fetch_add_current_done_counter(
+                    schedule.candidate_done_counter,
+                    Ordering::Release,
+                );
+                schedule
+                    .candidate_packet_idx
+                    .store(use_packet_idx, Ordering::Release);
+
+                // create return_ptr
+                let return_ptr: &'static AtomicPtr<O> =
+                    Box::leak(Box::new(AtomicPtr::new(null_mut())));
+
+                let waiting_task = if let ScheduleTask::Task(task) = schedule.task {
+                    WaitingTask {
+                        id: id_counter,
+                        task: ExecTask::<F, FS, O>::Task(task),
+                        return_ptr: Some(return_ptr),
+                    }
+                } else if let (
+                    ScheduleTask::Schedule(task),
+                    Some(schedule_vec),
+                    Some(candidate_packet),
+                ) = (
+                    schedule.task,
+                    schedule.shcedule_vec,
+                    schedule.candidate_packet_vec,
+                ) {
+                    let len = schedule_vec.len();
+                    WaitingTask {
+                        id: id_counter,
+                        task: ExecTask::<F, FS, O>::Scheduling(
+                            task,
+                            schedule_vec,
+                            if len == 0 { 0 } else { len - 1 },
+                            use_packet_idx,
+                            candidate_packet,
+                        ),
+                        return_ptr: Some(return_ptr),
+                    }
+                } else {
+                    panic!()
+                };
+
+                // create waiting task
+
+                packet.task[idx] = Some(waiting_task);
+                packet.drop[idx] = Some((return_ptr, Some(schedule.candidate_packet_idx)));
+
+                PollWaiting {
+                    data_ptr: return_ptr,
+                }
+            } else {
+                let _ = self.submit_packet(in_task);
+                self.add_schedule(schedule, id_counter, in_task)
             }
         }
     }

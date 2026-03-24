@@ -1,100 +1,172 @@
 use std::{
-    ptr::{self, null_mut},
-    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
-    usize,
+    ptr::null_mut,
+    sync::atomic::{AtomicPtr, AtomicUsize},
 };
 
-use crate::{ExecTask, ListCore, OutputTrait, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask};
+use crate::{
+    ExecTask, OutputTrait, Schedule, SchedulerTrait, TaskTrait, WaitingTask, cahotic::task,
+};
 
-pub struct SchedulerVec<O>
-where
-    O: 'static + OutputTrait + Send,
-{
-    pub(crate) vec: Vec<&'static AtomicPtr<O>>,
-}
-
-impl<O> SchedulerVec<O>
-where
-    O: 'static + OutputTrait + Send,
-{
-    pub fn get(&self, idx: usize) -> Option<&O> {
-        unsafe {
-            if let Some(ptr) = self.vec.get(idx) {
-                Some(&*ptr.load(Ordering::Acquire))
-            } else {
-                None
-            }
-        }
-    }
-}
-
-pub struct Scheduler<FS, O>
-where
-    FS: SchedulerTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send,
-{
-    pub(crate) idx: usize,
-    pub(crate) waiting_poll: Vec<&'static AtomicPtr<O>>,
-    pub(crate) task: FS,
-}
-
-impl<FS, O> Scheduler<FS, O>
-where
-    FS: SchedulerTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send,
-{
-    pub fn init(task: FS) -> Scheduler<FS, O> {
-        Scheduler {
-            idx: 0,
-            waiting_poll: Vec::with_capacity(16),
-            task,
-        }
-    }
-
-    pub fn after(&mut self, poll_waiting: &PollWaiting<O>) {
-        self.waiting_poll.push(poll_waiting.data_ptr);
-        if self.waiting_poll.len() != 1 {
-            self.idx += 1;
-        }
-    }
-}
-
-impl<F, FS, O, const PN: usize> ListCore<F, FS, O, PN>
+pub(crate) enum ScheduleTask<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn scheduler_exec(&self, scheduler: Scheduler<FS, O>) -> PollWaiting<O> {
-        self.packet_core.add_shceduler(
-            scheduler,
-            self.id_counter.fetch_add(1, Ordering::Release),
-            &self.in_task,
-        )
+    Task(F),
+    Schedule(FS),
+    _Phantom(O),
+}
+
+pub struct ScheduleUnit<F, FS, O>
+where
+    F: TaskTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
+    O: 'static + OutputTrait + Send,
+{
+    pub(crate) task: ScheduleTask<F, FS, O>,
+    pub(crate) return_ptr: &'static AtomicPtr<O>,
+    pub(crate) candidate_done_counter: usize,
+    pub(crate) candidate_packet_idx: &'static AtomicUsize,
+    pub(crate) idx: usize,
+    pub(crate) shcedule_vec: Option<Vec<&'static AtomicPtr<O>>>,
+    pub(crate) candidate_packet_vec: Option<Vec<&'static AtomicUsize>>,
+}
+
+impl<F, FS, O> ScheduleUnit<F, FS, O>
+where
+    F: TaskTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
+    O: 'static + OutputTrait + Send,
+{
+    pub fn create_task(task: F) -> Self {
+        let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
+        let schedule = ScheduleUnit {
+            task: ScheduleTask::Task(task),
+            candidate_done_counter: 1,
+            candidate_packet_idx: Box::leak(Box::new(AtomicUsize::new(64))),
+            idx: 0,
+            candidate_packet_vec: None,
+            return_ptr,
+            shcedule_vec: None,
+        };
+        schedule
     }
 
-    pub(crate) fn scheduling_handler(
-        &self,
-        waiting_task: &mut WaitingTask<F, FS, O>,
-    ) -> Result<(), ()> {
-        if let ExecTask::Scheduling(_, waiting_poll, idx, _) = &mut waiting_task.task {
-            if waiting_poll.len() == 0 {
-                return Ok(());
-            } else {
-                let ptr = waiting_poll.get(*idx).unwrap().load(Ordering::Acquire);
-                if ptr.is_null() {
-                    return Err(());
-                }
+    pub fn create_schedule(schedule: FS) -> Self {
+        let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
+        let schedule = ScheduleUnit {
+            task: ScheduleTask::Schedule(schedule),
+            candidate_done_counter: 1,
+            candidate_packet_idx: Box::leak(Box::new(AtomicUsize::new(64))),
+            idx: 0,
+            candidate_packet_vec: Some(vec![]),
+            return_ptr,
+            shcedule_vec: Some(vec![]),
+        };
+        schedule
+    }
 
-                if *idx == 0 {
-                    return Ok(());
-                } else {
-                    (*idx) -= 1;
-                    return Err(());
-                }
-            }
-        } else {
-            panic!()
+    pub fn next(&mut self, after: &mut ScheduleUnit<F, FS, O>) -> Result<(), &str> {
+        if let ScheduleTask::Schedule(_) = self.task {
+            return Err("error, next method can only be used for schedule types");
         }
+
+        after.candidate_done_counter += 1;
+        let return_ptr = after.return_ptr;
+        let candidate_idx = after.candidate_packet_idx;
+
+        if let (Some(schedule_vec), Some(candidate_idx_vec)) =
+            (&mut self.shcedule_vec, &mut self.candidate_packet_vec)
+        {
+            schedule_vec.push(return_ptr);
+            candidate_idx_vec.push(candidate_idx);
+        } else {
+            return Err("error, schedule_vec or candidate_idx_vec is not set in schedule");
+        }
+
+        Ok(())
     }
 }
+
+// pub struct Scheduler<F, FS, O>
+// where
+//     F: TaskTrait<O> + Send + 'static,
+//     FS: SchedulerTrait<O> + Send + 'static,
+//     O: 'static + OutputTrait + Send,
+// {
+//     pub(crate) schedule: Vec<ScheduleUnit<F, FS, O>>,
+// }
+
+// impl<F, FS, O> Scheduler<F, FS, O>
+// where
+//     F: TaskTrait<O> + Send + 'static,
+//     FS: SchedulerTrait<O> + Send + 'static,
+//     O: 'static + OutputTrait + Send,
+// {
+//     pub fn spawn_task(&mut self, task: F) -> usize {
+//         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
+//         let schedule = ScheduleUnit {
+//             task: ScheduleTask::Task(task),
+//             candidate_done_counter: 1,
+//             candidate_packet_idx: Box::leak(Box::new(AtomicUsize::new(64))),
+//             candidate_packet_vec: None,
+//             return_ptr,
+//             shcedule_vec: None,
+//         };
+
+//         let idx = self.schedule.len();
+//         self.schedule.push(schedule);
+//         idx
+//     }
+
+//     pub fn spawn_schedule(&mut self, task: FS) -> usize {
+//         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
+//         let schedule = ScheduleUnit {
+//             task: ScheduleTask::Scheduling(task),
+//             candidate_done_counter: 1,
+//             candidate_packet_idx: Box::leak(Box::new(AtomicUsize::new(64))),
+//             candidate_packet_vec: Some(vec![]),
+//             return_ptr,
+//             shcedule_vec: Some(vec![]),
+//         };
+
+//         let idx = self.schedule.len();
+//         self.schedule.push(schedule);
+//         idx
+//     }
+
+//     pub fn execute_task_after(
+//         &mut self,
+//         task_idx: usize,
+//         after_idx: usize,
+//     ) -> Result<(), &'static str> {
+//         let after = self
+//             .schedule
+//             .get_mut(after_idx)
+//             .ok_or_else(|| "error, after_idx points to an invalid index")?;
+//         after.candidate_done_counter += 1;
+//         let return_ptr = after.return_ptr;
+//         let candidate_idx = after.candidate_packet_idx;
+
+//         let task = self
+//             .schedule
+//             .get_mut(task_idx)
+//             .ok_or_else(|| "error, task_idx points to an invalid index")?;
+
+//         if let ScheduleTask::Task(_) = task.task {
+//             return Err("error, task must be of type scheduler");
+//         }
+
+//         if let (Some(schedule_vec), Some(candidate_idx_vec)) =
+//             (&mut task.shcedule_vec, &mut task.candidate_packet_vec)
+//         {
+//             schedule_vec.push(return_ptr);
+//             candidate_idx_vec.push(candidate_idx);
+//         } else {
+//             return Err("error, schedule_vec or candidate_idx_vec is not set in schedule");
+//         }
+
+//         Ok(())
+//     }
+// }
