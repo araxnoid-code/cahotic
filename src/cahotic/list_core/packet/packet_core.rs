@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    ExecTask, OutputTrait, Packet, PollWaiting, Schedule, ScheduleTask, ScheduleUnit,
-    SchedulerTrait, TaskTrait, WaitingTask,
+    ExecTask, OutputTrait, Packet, PollWaiting, Schedule, ScheduleTask, SchedulerTrait, TaskTrait,
+    WaitingTask,
 };
 
 pub struct PacketCore<F, FS, O, const PN: usize>
@@ -129,57 +129,9 @@ where
         }
     }
 
-    pub fn _add_shceduler(
-        &self,
-        scheduler: Schedule<FS, O>,
-        id_counter: u64,
-        in_task: &AtomicU64,
-    ) -> PollWaiting<O> {
-        unsafe {
-            let mut use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
-            if use_packet_idx == 64 {
-                self.set_use_packet();
-                use_packet_idx = self.use_packet.load(Ordering::Acquire) as usize;
-            }
-
-            let packet = &mut (*self.packet_list.load(Ordering::Acquire))[use_packet_idx];
-            let idx = packet.head.fetch_add(1, Ordering::Release);
-            if idx + 1 < PN {
-                // update in_task handler
-                in_task.fetch_add(1, Ordering::Release);
-                self.fetch_add_current_done_counter(1, Ordering::Release);
-                // create return_ptr
-                let return_ptr: &'static AtomicPtr<O> =
-                    Box::leak(Box::new(AtomicPtr::new(null_mut())));
-
-                // create waiting task
-                let waiting_task = WaitingTask {
-                    id: id_counter,
-                    task: ExecTask::Scheduling(
-                        scheduler.task,
-                        scheduler.waiting_poll,
-                        scheduler.idx,
-                        use_packet_idx,
-                        vec![],
-                    ),
-                    return_ptr: Some(return_ptr),
-                };
-                packet.task[idx] = Some(waiting_task);
-                packet.drop[idx] = Some((return_ptr, None));
-
-                PollWaiting {
-                    data_ptr: return_ptr,
-                }
-            } else {
-                let _ = self.submit_packet(in_task);
-                self._add_shceduler(scheduler, id_counter, in_task)
-            }
-        }
-    }
-
     pub fn add_schedule(
         &self,
-        schedule: ScheduleUnit<F, FS, O>,
+        schedule: Schedule<F, FS, O>,
         id_counter: u64,
         in_task: &AtomicU64,
     ) -> PollWaiting<O> {

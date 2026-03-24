@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    ListCore, OutputTrait, PollWaiting, Schedule, ScheduleUnit, SchedulerTrait, TaskTrait,
-    ThreadPoolCore,
+    ListCore, OutputTrait, PollWaiting, Schedule, SchedulerTrait, TaskTrait, ThreadPoolCore,
 };
 
 pub struct Cahotic<F, FD, O, const N: usize, const PN: usize>
@@ -41,7 +40,7 @@ where
         self.list_core.submit_packet();
     }
 
-    pub fn schedule_exec(&self, schedule: ScheduleUnit<F, FS, O>) -> PollWaiting<O> {
+    pub fn schedule_exec(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
         self.list_core.scheduler_exec(schedule)
     }
 

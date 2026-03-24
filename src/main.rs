@@ -1,4 +1,4 @@
-use cahotic::{Cahotic, Schedule, ScheduleUnit};
+use cahotic::{Cahotic, Schedule};
 use std::{
     sync::atomic::{AtomicIsize, AtomicU32},
     u64,
@@ -42,28 +42,17 @@ fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 10, 32>::init();
 
     for i in 0..100 {
-        let empty_bitmap = cahotic
-            .list_core
-            .packet_core
-            .empty_bitmap
-            .load(std::sync::atomic::Ordering::Acquire);
-        println!("{:064b}", empty_bitmap);
-
-        let mut poll1 = ScheduleUnit::create_task(MyTask::Task(|| {
+        let mut poll1 = Schedule::create_task(MyTask::Task(|| {
             sleep(Duration::from_millis(1000));
             MyOutput::Result(10)
         }));
 
-        cahotic.submit_packet();
-
-        let mut poll2 = ScheduleUnit::create_task(MyTask::Task(|| {
+        let mut poll2 = Schedule::create_task(MyTask::Task(|| {
             sleep(Duration::from_millis(2000));
             MyOutput::Result(20)
         }));
 
-        cahotic.submit_packet();
-
-        let mut poll3 = ScheduleUnit::create_schedule(MyTask::Schedule(|schedule_vec| {
+        let mut poll3 = Schedule::create_schedule(MyTask::Schedule(|schedule_vec| {
             sleep(Duration::from_millis(1500));
 
             if let (Some(MyOutput::Result(poll1)), Some(MyOutput::Result(poll2))) =
@@ -77,7 +66,7 @@ fn main() {
         poll3.after(&mut poll1).unwrap();
         poll3.after(&mut poll2).unwrap();
 
-        let mut poll4 = ScheduleUnit::create_schedule(MyTask::Schedule(|schedule_vec| {
+        let mut poll4 = Schedule::create_schedule(MyTask::Schedule(|schedule_vec| {
             sleep(Duration::from_millis(1500));
 
             if let (Some(MyOutput::Result(poll1)), Some(MyOutput::Result(poll2))) =
@@ -90,28 +79,13 @@ fn main() {
         }));
         poll4.after(&mut poll3).unwrap();
         poll4.after(&mut poll1).unwrap();
+
         cahotic.schedule_exec(poll3);
         cahotic.schedule_exec(poll1);
         cahotic.schedule_exec(poll2);
         cahotic.schedule_exec(poll4);
     }
     cahotic.submit_packet();
-
-    println!("done spawning");
-    loop {
-        let empty_bitmap = cahotic
-            .list_core
-            .packet_core
-            .empty_bitmap
-            .load(std::sync::atomic::Ordering::Acquire);
-        println!("{:064b}", empty_bitmap);
-
-        sleep(Duration::from_millis(1000));
-
-        if empty_bitmap == u64::MAX {
-            break;
-        }
-    }
 
     cahotic.join();
 }
