@@ -167,6 +167,7 @@ fn main() {
     poll2.after(&mut poll1).unwrap();
 
     // memasukkan schedule ke dalam packet
+    // note: semua Schedule yang usdah di buat dan dijadwalkan "harus" di eksekusi
     cahotic.schedule_exec(poll1);
     cahotic.schedule_exec(poll2);
 
