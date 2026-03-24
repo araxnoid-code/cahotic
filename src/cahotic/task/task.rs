@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicPtr, AtomicUsize};
 
-use crate::{OutputTrait, PollWaiting, SchedulerTrait, TaskTrait};
+use crate::{OutputTrait, SchedulerTrait, TaskTrait};
 
 pub enum ExecTask<F, FS, O>
 where
@@ -17,5 +17,4 @@ where
         Vec<&'static AtomicUsize>,
     ),
     Output(O),
-    None,
 }
