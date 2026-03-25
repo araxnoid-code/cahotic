@@ -1,6 +1,6 @@
 use std::{
     array,
-    sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize},
+    sync::atomic::{AtomicPtr, AtomicUsize},
 };
 
 use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};

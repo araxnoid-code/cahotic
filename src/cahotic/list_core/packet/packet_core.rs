@@ -112,7 +112,7 @@ where
 
                 // create waiting task
                 let waiting_task = WaitingTask {
-                    id: id_counter,
+                    _id: id_counter,
                     task: ExecTask::Task(task),
                     return_ptr: Some(return_ptr),
                 };
@@ -160,7 +160,7 @@ where
 
                 let waiting_task = if let ScheduleTask::Task(task) = schedule.task {
                     WaitingTask {
-                        id: id_counter,
+                        _id: id_counter,
                         task: ExecTask::<F, FS, O>::Task(task),
                         return_ptr: Some(return_ptr),
                     }
@@ -175,7 +175,7 @@ where
                 ) {
                     let len = schedule_vec.len();
                     WaitingTask {
-                        id: id_counter,
+                        _id: id_counter,
                         task: ExecTask::<F, FS, O>::Scheduling(
                             task,
                             schedule_vec,

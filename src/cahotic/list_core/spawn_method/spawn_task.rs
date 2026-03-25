@@ -1,9 +1,6 @@
-use std::{
-    ptr::null_mut,
-    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
-};
+use std::sync::atomic::Ordering;
 
-use crate::{ExecTask, ListCore, OutputTrait, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask};
+use crate::{ListCore, OutputTrait, PollWaiting, SchedulerTrait, TaskTrait};
 
 impl<F, FS, O, const PN: usize> ListCore<F, FS, O, PN>
 where

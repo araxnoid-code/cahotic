@@ -1,17 +1,14 @@
 use std::{
     collections::VecDeque,
-    fmt::Debug,
     hint::spin_loop,
-    ptr::null_mut,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering},
-        mpsc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
-    thread::{self, JoinHandle, sleep, spawn},
+    thread::{JoinHandle, spawn},
 };
 
-use crate::{ListCore, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit, WaitingTask};
+use crate::{ListCore, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
 
 pub struct ThreadPoolCore<F, FD, O, const N: usize, const PN: usize>
 where
@@ -23,13 +20,11 @@ where
     pub(crate) pool: Vec<JoinHandle<()>>,
 
     // handler
-    pub(crate) reprt_handler: Arc<AtomicBool>,
     pub(crate) done_task: Arc<AtomicU64>,
     pub(crate) join_flag: Arc<AtomicBool>,
 
     // list core
     list_core: Arc<ListCore<F, FD, O, PN>>,
-    // global thread pool list
 }
 
 impl<F, FD, O, const N: usize, const PN: usize> ThreadPoolCore<F, FD, O, N, PN>
@@ -40,7 +35,6 @@ where
 {
     pub fn init(list_core: Arc<ListCore<F, FD, O, PN>>) -> ThreadPoolCore<F, FD, O, N, PN> {
         // handler
-        let reprt_handler = Arc::new(AtomicBool::new(true));
         let join_flag = Arc::new(AtomicBool::new(false));
         let done_task = Arc::new(AtomicU64::new(0));
 
@@ -59,7 +53,7 @@ where
 
             let spawn = spawn(move || {
                 let mut thread_unit = ThreadUnit {
-                    id,
+                    _id: id,
                     scheduling_queue: VecDeque::with_capacity(1024),
                     done_task: done_task_clone,
                     join_flag: join_flag_clone,
@@ -88,7 +82,6 @@ where
             join_flag,
             list_core,
             pool,
-            reprt_handler,
         }
     }
 

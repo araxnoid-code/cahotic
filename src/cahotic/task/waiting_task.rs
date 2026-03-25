@@ -1,6 +1,6 @@
-use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize};
+use std::sync::atomic::{AtomicPtr, AtomicUsize};
 
-use crate::{ExecTask, PollWaiting, SchedulerTrait};
+use crate::{ExecTask, SchedulerTrait};
 
 // task
 pub trait OutputTrait {}
@@ -31,7 +31,7 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub(crate) id: u64,
+    pub(crate) _id: u64,
     pub(crate) task: ExecTask<F, FS, O>,
     pub(crate) return_ptr: Option<&'static AtomicPtr<O>>,
 }

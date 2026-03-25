@@ -1,13 +1,12 @@
 use std::{
     collections::VecDeque,
-    hint::spin_loop,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64},
     },
 };
 
-use crate::{ExecTask, ListCore, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait, WaitingTask};
+use crate::{ListCore, OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
 pub struct ThreadUnit<F, FS, O, const PN: usize>
 where
@@ -17,7 +16,7 @@ where
 {
     // thread
     // // unique
-    pub(crate) id: usize,
+    pub(crate) _id: usize,
     // // drop-stack
     pub(crate) scheduling_queue: VecDeque<WaitingTask<F, FS, O>>,
 

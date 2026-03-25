@@ -24,6 +24,15 @@ atas beberapa kekurangan itu, cahotic mengganti system menjadi Packet, packet ha
 4. Lock-Free, thread tidak akan menggunakan compare_and_swap dalam tahapan mengambil task pada packet, kini hanya menggunakan fetch_add yang memberikan kemanan dari konflik dan sinkronisasi tingakt cpu langsung.
 5. Setiap packet haruslah disubmit untuk dapat diproses oleh thread. jika packet telah penuh saat ingin memasukkan task, maka akan secara otomatis di submit terlebih dahulu dan mencari packet lain untuk task tersebut.
 
+
+### 2. Pengahapusan mekanisme inti version/0.0.1
+dikarenakan konsep swap-list dan primary-list tidak digunakan lagi, maka mekanisme untuk menunjang kebutuhan dari swap-list dan primary-list sebagian besar telah dihilangkan dan diubah, antara lain:
+1. drop-arena
+2. representative-thread
+3. swap-list
+4. primary-list
+5. logika running pada `ThreadUnit`
+
 ### 2. Inisialisasi Cahotic
 pada inisialisasi:
 ```rust
