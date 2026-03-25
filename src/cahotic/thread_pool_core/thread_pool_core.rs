@@ -101,17 +101,17 @@ where
             }
 
             // clean packet
-            let packet_list_ptr = self
-                .list_core
-                .packet_core
-                .packet_list
-                .swap(null_mut(), Ordering::Acquire);
-            for packet in &*packet_list_ptr {
-                drop(Box::from_raw(
-                    packet.done_counter as *const AtomicUsize as *mut AtomicUsize,
-                ));
-            }
-            drop(Box::from_raw(packet_list_ptr));
+            // let packet_list_ptr = self
+            //     .list_core
+            //     .packet_core
+            //     .packet_list
+            //     .swap(null_mut(), Ordering::Acquire);
+            // for packet in &*packet_list_ptr {
+            //     drop(Box::from_raw(
+            //         packet.done_counter as *const AtomicUsize as *mut AtomicUsize,
+            //     ));
+            // }
+            // drop(Box::from_raw(packet_list_ptr));
 
             // join
             self.join_flag.store(true, Ordering::Release);

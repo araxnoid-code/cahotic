@@ -1,6 +1,6 @@
 use std::{thread::sleep, time::Duration};
 
-use cahotic::{Cahotic, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait};
+use crate::{Cahotic, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait};
 
 enum MyOutput {
     Result(i32),
@@ -31,16 +31,14 @@ impl SchedulerTrait<MyOutput> for MyTask {
     }
 }
 
-fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 10, 32>::init();
+#[test]
+fn initial() {
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
 
-    for i in 0..2048 {
-        cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
-        cahotic.spawn_task(MyTask::Task(|| {
-            sleep(Duration::from_millis(500));
-            MyOutput::None
-        }));
-    }
+    // spawn task
+    let poll = cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
+
+    // submit packet
     cahotic.submit_packet();
 
     cahotic.join();

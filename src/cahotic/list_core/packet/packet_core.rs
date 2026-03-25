@@ -27,7 +27,6 @@ where
     //
     pub exec_packet: AtomicUsize,
     pub exec_packet_handler: AtomicBool,
-    pub masking: AtomicUsize,
 }
 
 impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
@@ -50,7 +49,6 @@ where
             //
             exec_packet_handler: AtomicBool::new(false),
             exec_packet: AtomicUsize::new(0),
-            masking: AtomicUsize::new(64),
         }
     }
 
@@ -123,6 +121,7 @@ where
                     data_ptr: return_ptr,
                 }
             } else {
+                packet.head.fetch_sub(1, Ordering::Release);
                 let _ = self.submit_packet(in_task);
                 self.add_task(task, id_counter, in_task)
             }
