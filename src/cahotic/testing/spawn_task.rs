@@ -3,21 +3,21 @@ use std::{thread::sleep, time::Duration};
 use crate::{Cahotic, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait};
 
 enum MyOutput {
-    Result(i32),
+    _Result(i32),
     None,
 }
 impl OutputTrait for MyOutput {}
 
 enum MyTask {
     Task(fn() -> MyOutput),
-    Schedule(fn(scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput),
+    _Schedule(fn(scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput),
 }
 
 impl TaskTrait<MyOutput> for MyTask {
     fn execute(&self) -> MyOutput {
         match self {
             MyTask::Task(f) => f(),
-            MyTask::Schedule(_) => MyOutput::None,
+            MyTask::_Schedule(_) => MyOutput::None,
         }
     }
 }
@@ -26,7 +26,7 @@ impl SchedulerTrait<MyOutput> for MyTask {
     fn execute(&self, scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput {
         match self {
             MyTask::Task(_) => MyOutput::None,
-            MyTask::Schedule(f) => f(scheduler_vec),
+            MyTask::_Schedule(f) => f(scheduler_vec),
         }
     }
 }
@@ -42,12 +42,12 @@ fn spawn_task() {
 
     // testing 2
     // check spawn 3 task
-    // // pada satu packet
+    // // in one packet
     cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
     cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
     cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
     cahotic.submit_packet();
-    // // berbeda packet
+    // // different packet
     cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
     cahotic.submit_packet();
     cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
@@ -57,7 +57,7 @@ fn spawn_task() {
 
     // testing 3
     // check spawn 3 task yang delay
-    // // pada satu packet
+    // // in one packet
     cahotic.spawn_task(MyTask::Task(|| {
         sleep(Duration::from_millis(500));
         MyOutput::None
@@ -71,7 +71,7 @@ fn spawn_task() {
         MyOutput::None
     }));
     cahotic.submit_packet();
-    // // berbeda packet
+    // // different packet
     cahotic.spawn_task(MyTask::Task(|| {
         sleep(Duration::from_millis(500));
         MyOutput::None
@@ -89,13 +89,12 @@ fn spawn_task() {
     cahotic.submit_packet();
 
     // testing 4
-    // // spawn task melebihi kapasitas packet size
-    for i in 0..64 {
+    // spawn task exceeds packet size capacity
+    for _ in 0..256 {
         cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
     }
     cahotic.submit_packet();
-
-    for i in 0..64 {
+    for _ in 0..256 {
         cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
         cahotic.submit_packet();
     }

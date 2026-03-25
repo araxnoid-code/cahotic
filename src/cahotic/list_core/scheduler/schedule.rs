@@ -112,7 +112,7 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn scheduler_exec(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
+    pub fn schedule_exec(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
         self.packet_core.add_schedule(
             schedule,
             self.id_counter.fetch_add(1, Ordering::Release),

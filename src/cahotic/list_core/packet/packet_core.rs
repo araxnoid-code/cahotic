@@ -196,6 +196,7 @@ where
                     data_ptr: return_ptr,
                 }
             } else {
+                packet.head.fetch_sub(1, Ordering::Release);
                 let _ = self.submit_packet(in_task);
                 self.add_schedule(schedule, id_counter, in_task)
             }

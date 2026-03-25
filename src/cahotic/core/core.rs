@@ -4,17 +4,17 @@ use crate::{
     ListCore, OutputTrait, PollWaiting, Schedule, SchedulerTrait, TaskTrait, ThreadPoolCore,
 };
 
-pub struct Cahotic<F, FD, O, const N: usize, const PN: usize>
+pub struct Cahotic<F, FS, O, const N: usize, const PN: usize>
 where
     F: TaskTrait<O> + 'static + Send,
-    FD: SchedulerTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send + Send,
+    FS: SchedulerTrait<O> + Send + 'static,
+    O: 'static + OutputTrait + Send,
 {
     // List Core
-    pub list_core: Arc<ListCore<F, FD, O, PN>>,
+    pub list_core: Arc<ListCore<F, FS, O, PN>>,
 
     // thread pool Core
-    thread_pool_core: ThreadPoolCore<F, FD, O, N, PN>,
+    thread_pool_core: ThreadPoolCore<F, FS, O, N, PN>,
 }
 
 impl<F, FS, O, const N: usize, const PN: usize> Cahotic<F, FS, O, N, PN>
@@ -41,7 +41,7 @@ where
     }
 
     pub fn schedule_exec(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
-        self.list_core.scheduler_exec(schedule)
+        self.list_core.schedule_exec(schedule)
     }
 
     pub fn join(self) {
