@@ -54,6 +54,7 @@ where
             spawn(move || {
                 let mut thread_unit = ThreadUnit {
                     _id: id,
+                    break_counter: 0,
                     scheduling_queue: VecDeque::with_capacity(1024),
                     done_task: done_task_clone,
                     join_flag: join_flag_clone,

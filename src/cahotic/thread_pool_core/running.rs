@@ -2,6 +2,7 @@ use std::{
     hint::spin_loop,
     ptr::null_mut,
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
+    thread::yield_now,
 };
 
 use crate::{ExecTask, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait, ThreadUnit};
@@ -90,9 +91,15 @@ where
             let packet_idx = self.exec_packet_idx;
             if packet_idx == 64 {
                 self.get_idx_packet();
-                spin_loop();
+                if self.break_counter < 1000 {
+                    spin_loop();
+                } else {
+                    yield_now();
+                }
+                self.break_counter += 1;
                 continue;
             }
+            self.break_counter = 0;
 
             let packet = &mut self.list_core.load_packet_list()[packet_idx];
 

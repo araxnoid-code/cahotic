@@ -17,6 +17,7 @@ where
     // thread
     // // unique
     pub(crate) _id: usize,
+    pub(crate) break_counter: u64,
     // // drop-stack
     pub(crate) scheduling_queue: VecDeque<WaitingTask<F, FS, O>>,
 
