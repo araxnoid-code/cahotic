@@ -1,9 +1,10 @@
 use std::{
     collections::VecDeque,
     hint::spin_loop,
+    ptr::null_mut,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
     thread::{JoinHandle, spawn},
 };
@@ -86,22 +87,37 @@ where
     }
 
     pub fn join(self) {
-        // clean
-        // check, all task done
-        self.list_core.submit_packet();
-        loop {
-            if self.list_core.in_task.load(Ordering::Acquire)
-                <= self.done_task.load(Ordering::Acquire)
-            {
-                break;
+        unsafe {
+            // clean
+            // check, all task done
+            self.list_core.submit_packet();
+            loop {
+                if self.list_core.in_task.load(Ordering::Acquire)
+                    <= self.done_task.load(Ordering::Acquire)
+                {
+                    break;
+                }
+                spin_loop();
             }
-            spin_loop();
-        }
 
-        // join
-        self.join_flag.store(true, Ordering::Release);
-        for join_handle in self.pool {
-            join_handle.join().unwrap();
+            // clean packet
+            let packet_list_ptr = self
+                .list_core
+                .packet_core
+                .packet_list
+                .swap(null_mut(), Ordering::Acquire);
+            for packet in &*packet_list_ptr {
+                drop(Box::from_raw(
+                    packet.done_counter as *const AtomicUsize as *mut AtomicUsize,
+                ));
+            }
+            drop(Box::from_raw(packet_list_ptr));
+
+            // join
+            self.join_flag.store(true, Ordering::Release);
+            for join_handle in self.pool {
+                join_handle.join().unwrap();
+            }
         }
     }
 }
