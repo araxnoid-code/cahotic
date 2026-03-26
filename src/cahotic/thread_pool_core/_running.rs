@@ -19,37 +19,83 @@ where
                 break;
             }
 
-            if let Some(packet_idx) = self.packet_drop_queue.pop_front() {
-                let packet = &mut self.list_core.load_packet_list()[packet_idx];
-                if packet.done_counter.load(Ordering::Acquire) == 0 {
-                    for i in 0..packet.head.load(Ordering::Acquire) {
-                        if let Some((return_ptr, candidate_ptr)) = packet.drop[i].take() {
-                            unsafe {
-                                drop(Box::from_raw(
-                                    return_ptr.swap(null_mut(), Ordering::Release),
-                                ));
-                                drop(Box::from_raw(
-                                    return_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
-                                ));
-                                if let Some(candidate_ptr) = candidate_ptr {
+            // drop
+            if self.drop_counter & 127 == 0 {
+                self.get_idx_drop();
+                self.drop_counter = 0;
+
+                let drop_idx = self.use_drop_idx;
+                if drop_idx != 64 {
+                    let masking = 1_u64 << drop_idx;
+                    let mut bitmap = self
+                        .list_core
+                        .packet_core
+                        .drop_bitmap
+                        .fetch_and(!masking, Ordering::Release);
+                    bitmap &= masking;
+
+                    if bitmap != 0 {
+                        let packet = &mut self.list_core.load_packet_list()[drop_idx];
+                        for i in 0..packet.head.load(Ordering::Acquire) {
+                            if let Some((return_ptr, candidate_ptr)) = packet.drop[i].take() {
+                                unsafe {
                                     drop(Box::from_raw(
-                                        candidate_ptr as *const AtomicUsize as *mut AtomicUsize,
+                                        return_ptr.swap(null_mut(), Ordering::Release),
                                     ));
+                                    drop(Box::from_raw(
+                                        return_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
+                                    ));
+                                    if let Some(candidate_ptr) = candidate_ptr {
+                                        drop(Box::from_raw(
+                                            candidate_ptr as *const AtomicUsize as *mut AtomicUsize,
+                                        ));
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // drop
-                    self.done_task.fetch_add(1, Ordering::Release);
-                    self.list_core
-                        .packet_core
-                        .empty_bitmap
-                        .fetch_or(1_u64 << packet_idx, Ordering::Release);
-                } else {
-                    self.packet_drop_queue.push_back(packet_idx);
+                        self.done_task.fetch_add(1, Ordering::Release);
+                        self.list_core
+                            .packet_core
+                            .empty_bitmap
+                            .fetch_or(1_u64 << drop_idx, Ordering::Release);
+                    }
                 }
             }
+            self.drop_counter += 1;
+            // drop
+
+            // if let Some(packet_idx) = self.packet_drop_queue.pop_front() {
+            //     let packet = &mut self.list_core.load_packet_list()[packet_idx];
+            //     if packet.done_counter.load(Ordering::Acquire) == 0 {
+            //         for i in 0..packet.head.load(Ordering::Acquire) {
+            //             if let Some((return_ptr, candidate_ptr)) = packet.drop[i].take() {
+            //                 unsafe {
+            //                     drop(Box::from_raw(
+            //                         return_ptr.swap(null_mut(), Ordering::Release),
+            //                     ));
+            //                     drop(Box::from_raw(
+            //                         return_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
+            //                     ));
+            //                     if let Some(candidate_ptr) = candidate_ptr {
+            //                         drop(Box::from_raw(
+            //                             candidate_ptr as *const AtomicUsize as *mut AtomicUsize,
+            //                         ));
+            //                     }
+            //                 }
+            //             }
+            //         }
+
+            //         // drop
+            //         self.done_task.fetch_add(1, Ordering::Release);
+            //         self.list_core
+            //             .packet_core
+            //             .empty_bitmap
+            //             .fetch_or(1_u64 << packet_idx, Ordering::Release);
+            //     } else {
+            //         self.packet_drop_queue.push_back(packet_idx);
+            //     }
+            // }
 
             if let Some(mut schedule_task) = self.scheduling_queue.pop_front() {
                 if let Ok(()) = self.list_core.scheduling_handler(&mut schedule_task) {
@@ -88,7 +134,7 @@ where
                 }
             }
 
-            let packet_idx = self.exec_packet_idx;
+            let packet_idx = self.use_packet_idx;
             if packet_idx == 64 {
                 self.get_idx_packet();
                 if self.break_counter < 1000 {
@@ -111,9 +157,9 @@ where
                     .ready_bitmap
                     .fetch_and(masking, Ordering::Release);
 
-                self.packet_drop_queue.push_back(packet_idx);
+                // self.packet_drop_queue.push_back(packet_idx);
             } else if tail + 1 > PN {
-                self.exec_packet_idx = 64;
+                self.use_packet_idx = 64;
                 spin_loop();
                 continue;
             }
@@ -124,8 +170,14 @@ where
                         let output = Box::into_raw(Box::new(f.execute()));
                         task.return_ptr.unwrap().store(output, Ordering::Release);
 
-                        packet.done_counter.fetch_sub(1, Ordering::Release);
                         self.done_task.fetch_add(1, Ordering::Release);
+                        let done_counter = packet.done_counter.fetch_sub(1, Ordering::Release);
+                        if done_counter == 1 {
+                            self.list_core
+                                .packet_core
+                                .drop_bitmap
+                                .fetch_or(1 << packet_idx, Ordering::Release);
+                        }
                         spin_loop();
                     }
                     ExecTask::Scheduling(_, _, _, _, _) => {
@@ -152,8 +204,24 @@ where
             bitmap &= !((1_u64 << masking) - 1_u64);
         }
         let index = bitmap.trailing_zeros();
-        self.exec_packet_idx = index as usize;
+        self.use_packet_idx = index as usize;
         self.masking_packet_idx = index as usize;
     }
-    //
+
+    pub fn get_idx_drop(&mut self) {
+        let mut bitmap = self
+            .list_core
+            .packet_core
+            .drop_bitmap
+            .load(Ordering::Acquire);
+
+        let masking = self.masking_drop_idx;
+        if masking != 64 {
+            bitmap &= !(1_u64 << masking);
+            bitmap &= !((1_u64 << masking) - 1_u64);
+        }
+        let index = bitmap.trailing_zeros();
+        self.use_drop_idx = index as usize;
+        self.masking_drop_idx = index as usize;
+    }
 }

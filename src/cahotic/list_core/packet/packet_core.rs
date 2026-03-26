@@ -22,6 +22,7 @@ where
     //
     pub empty_bitmap: AtomicU64,
     pub ready_bitmap: AtomicU64,
+    pub drop_bitmap: AtomicU64,
     //
     pub use_packet: AtomicU32,
     //
@@ -44,6 +45,7 @@ where
             //
             empty_bitmap: AtomicU64::new(u64::MAX),
             ready_bitmap: AtomicU64::new(0),
+            drop_bitmap: AtomicU64::new(0),
             //
             use_packet: AtomicU32::new(64),
             //
@@ -67,10 +69,14 @@ where
                 spin_loop();
             }
 
-            self.use_packet.store(
-                self.empty_bitmap.load(Ordering::Acquire).trailing_zeros(),
-                Ordering::Release,
-            );
+            let index = self.empty_bitmap.load(Ordering::Acquire).trailing_zeros();
+
+            self.use_packet.store(index, Ordering::Release);
+
+            unsafe {
+                let packet = &(*self.packet_list.load(Ordering::Acquire))[index as usize];
+                packet.head.store(0, Ordering::Release);
+            }
         }
     }
 

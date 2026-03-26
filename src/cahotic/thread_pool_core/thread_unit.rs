@@ -31,6 +31,10 @@ where
 
     // packet
     pub(crate) packet_drop_queue: VecDeque<usize>,
-    pub(crate) exec_packet_idx: usize,
+    pub(crate) use_packet_idx: usize,
     pub(crate) masking_packet_idx: usize,
+    // // drop-packet
+    pub(crate) drop_counter: usize,
+    pub(crate) use_drop_idx: usize,
+    pub(crate) masking_drop_idx: usize,
 }

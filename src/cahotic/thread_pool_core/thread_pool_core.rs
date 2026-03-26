@@ -60,8 +60,11 @@ where
                     join_flag: join_flag_clone,
                     list_core: list_core_clone,
                     packet_drop_queue: VecDeque::with_capacity(64),
-                    exec_packet_idx: 64,
+                    use_packet_idx: 64,
                     masking_packet_idx: 64,
+                    use_drop_idx: 64,
+                    masking_drop_idx: 64,
+                    drop_counter: 0,
                 };
 
                 while !block_clone.load(Ordering::Acquire) {
