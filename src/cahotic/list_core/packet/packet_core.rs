@@ -2,7 +2,7 @@ use std::{
     array,
     hint::spin_loop,
     ptr::null_mut,
-    sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, AtomicUsize, Ordering},
+    sync::atomic::{AtomicPtr, AtomicU32, AtomicU64, AtomicUsize, Ordering},
     u64,
 };
 
@@ -23,11 +23,10 @@ where
     pub empty_bitmap: AtomicU64,
     pub ready_bitmap: AtomicU64,
     pub drop_bitmap: AtomicU64,
+    pub allo_schedule_bitmap: AtomicU64,
+    pub poll_schedule_bitmap: AtomicU64,
     //
     pub use_packet: AtomicU32,
-    //
-    pub exec_packet: AtomicUsize,
-    pub exec_packet_handler: AtomicBool,
 }
 
 impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
@@ -46,11 +45,10 @@ where
             empty_bitmap: AtomicU64::new(u64::MAX),
             ready_bitmap: AtomicU64::new(0),
             drop_bitmap: AtomicU64::new(0),
+            allo_schedule_bitmap: AtomicU64::new(u64::MAX),
+            poll_schedule_bitmap: AtomicU64::new(0),
             //
             use_packet: AtomicU32::new(64),
-            //
-            exec_packet_handler: AtomicBool::new(false),
-            exec_packet: AtomicUsize::new(0),
         }
     }
 

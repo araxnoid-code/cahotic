@@ -32,18 +32,20 @@ impl SchedulerTrait<MyOutput> for MyTask {
 }
 
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let data: u64 = 0b0000;
+    println!("{}", data.trailing_ones());
+    // let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
 
-    for i in 0..2000 {
-        // spawn task
-        cahotic.spawn_task(MyTask::Task(|| {
-            sleep(Duration::from_millis(100));
-            MyOutput::None
-        }));
+    // for i in 0..2000 {
+    //     // spawn task
+    //     cahotic.spawn_task(MyTask::Task(|| {
+    //         sleep(Duration::from_millis(100));
+    //         MyOutput::None
+    //     }));
 
-        // submit packet
-    }
-    cahotic.submit_packet();
+    //     // submit packet
+    // }
+    // cahotic.submit_packet();
 
-    cahotic.join();
+    // cahotic.join();
 }

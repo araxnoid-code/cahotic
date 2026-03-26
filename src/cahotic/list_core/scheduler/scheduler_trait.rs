@@ -1,4 +1,6 @@
-use crate::{OutputTrait, ScheduleVec};
+use std::sync::Arc;
+
+use crate::{ListCore, OutputTrait, ScheduleVec};
 
 pub trait SchedulerTrait<O>
 where
@@ -6,3 +8,5 @@ where
 {
     fn execute(&self, scheduler_vec: ScheduleVec<O>) -> O;
 }
+
+// struct Scheduler {}

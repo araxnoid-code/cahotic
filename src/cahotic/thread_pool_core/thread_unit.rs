@@ -30,7 +30,6 @@ where
     pub(crate) list_core: Arc<ListCore<F, FS, O, PN>>,
 
     // packet
-    pub(crate) packet_drop_queue: VecDeque<usize>,
     pub(crate) use_packet_idx: usize,
     pub(crate) masking_packet_idx: usize,
     // // drop-packet
