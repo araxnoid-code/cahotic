@@ -22,7 +22,7 @@ where
             // drop
             self.drop_packet();
             // drop
-            //
+
             // schedule poll
             self.schedule_poll();
             // schedule poll
@@ -61,6 +61,20 @@ where
                         let output = Box::into_raw(Box::new(f.execute()));
                         task.return_ptr.unwrap().store(output, Ordering::Release);
 
+                        // clear child
+                        let poll_child = task.poll_child;
+                        for (counter, schedule_idx) in poll_child {
+                            let counter = counter.fetch_sub(1, Ordering::Release);
+                            if counter == 1 {
+                                let masking = 1_u64 << schedule_idx;
+                                self.list_core
+                                    .packet_core
+                                    .poll_schedule_bitmap
+                                    .fetch_or(masking, Ordering::Release);
+                            }
+                        }
+
+                        // drop packet
                         self.done_task.fetch_add(1, Ordering::Release);
                         let done_counter = packet.done_counter.fetch_sub(1, Ordering::Release);
                         if done_counter == 1 {
@@ -162,46 +176,97 @@ where
         self.drop_counter += 1;
     }
 
-    pub fn schedule_poll(&mut self) {
-        if let Some(mut schedule_task) = self.scheduling_queue.pop_front() {
-            if let Ok(()) = self.list_core.scheduling_handler(&mut schedule_task) {
-                match schedule_task.task {
-                    ExecTask::Scheduling(f, scheduler_vec, _, packet_idx, candidate_packet_idx) => {
-                        let output =
-                            Box::into_raw(Box::new(f.execute(ScheduleVec { vec: scheduler_vec })));
-                        schedule_task
-                            .return_ptr
-                            .unwrap()
-                            .store(output, Ordering::Release);
+    pub fn get_idx_sch(&mut self) {
+        let mut bitmap = self
+            .list_core
+            .packet_core
+            .poll_schedule_bitmap
+            .load(Ordering::Acquire);
+        let masking = self.masking_sch_idx;
+        if masking != 64 {
+            bitmap &= !(1_u64 << masking);
+            bitmap &= !((1_u64 << masking) - 1_u64);
+        }
+        let index = bitmap.trailing_zeros();
+        self.use_sch_idx = index as usize;
+        self.masking_sch_idx = index as usize;
+    }
 
-                        // update clean
-                        let packet = &mut self.list_core.load_packet_list()[packet_idx];
-                        let done_counter = packet.done_counter.fetch_sub(1, Ordering::Release);
-                        if done_counter == 1 {
-                            self.list_core
-                                .packet_core
-                                .drop_bitmap
-                                .fetch_or(1 << packet_idx, Ordering::Release);
+    pub fn schedule_poll(&mut self) {
+        self.get_idx_sch();
+
+        let sch_idx = self.use_sch_idx;
+        if sch_idx != 64 {
+            let masking = 1_u64 << sch_idx;
+            let mut bitmap = self
+                .list_core
+                .packet_core
+                .poll_schedule_bitmap
+                .fetch_and(!masking, Ordering::Release);
+            bitmap &= masking;
+            if bitmap != 0 {
+                unsafe {
+                    let schedule_slot = (*self
+                        .list_core
+                        .packet_core
+                        .schedule_list
+                        .load(Ordering::Acquire))[sch_idx]
+                        .schedule
+                        .take();
+
+                    self.list_core
+                        .packet_core
+                        .allo_schedule_bitmap
+                        .fetch_or(masking, Ordering::Release);
+
+                    if let Some(schedule) = schedule_slot {
+                        match schedule.task {
+                            ExecTask::Scheduling(
+                                f,
+                                scheduler_vec,
+                                _,
+                                packet_idx,
+                                candidate_packet_idx,
+                            ) => {
+                                let output = Box::into_raw(Box::new(
+                                    f.execute(ScheduleVec { vec: scheduler_vec }),
+                                ));
+                                schedule
+                                    .return_ptr
+                                    .unwrap()
+                                    .store(output, Ordering::Release);
+
+                                // clean
+                                let packet = &mut self.list_core.load_packet_list()[packet_idx];
+                                let done_counter =
+                                    packet.done_counter.fetch_sub(1, Ordering::Release);
+                                if done_counter == 1 {
+                                    self.list_core
+                                        .packet_core
+                                        .drop_bitmap
+                                        .fetch_or(1 << packet_idx, Ordering::Release);
+                                }
+
+                                // clean schedule
+                                for idx in candidate_packet_idx {
+                                    let packet = &mut self.list_core.load_packet_list()
+                                        [idx.load(Ordering::Acquire)];
+                                    let done_counter =
+                                        packet.done_counter.fetch_sub(1, Ordering::Release);
+                                    if done_counter == 1 {
+                                        self.list_core
+                                            .packet_core
+                                            .drop_bitmap
+                                            .fetch_or(1 << packet_idx, Ordering::Release);
+                                    }
+                                }
+
+                                self.done_task.fetch_add(1, Ordering::Release);
+                            }
+                            _ => panic!(),
                         }
-                        // clean schedule packet
-                        for idx in candidate_packet_idx {
-                            let packet =
-                                &mut self.list_core.load_packet_list()[idx.load(Ordering::Acquire)];
-                            packet.done_counter.fetch_sub(1, Ordering::Release);
-                        }
-                        let done_counter = self.done_task.fetch_add(1, Ordering::Release);
-                        if done_counter == 1 {
-                            self.list_core
-                                .packet_core
-                                .drop_bitmap
-                                .fetch_or(1 << packet_idx, Ordering::Release);
-                        }
-                        spin_loop();
                     }
-                    _ => panic!(),
-                };
-            } else {
-                self.scheduling_queue.push_back(schedule_task);
+                }
             }
         }
     }

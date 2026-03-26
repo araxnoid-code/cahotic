@@ -34,4 +34,5 @@ where
     pub(crate) _id: u64,
     pub(crate) task: ExecTask<F, FS, O>,
     pub(crate) return_ptr: Option<&'static AtomicPtr<O>>,
+    pub(crate) poll_child: Vec<(&'static AtomicUsize, u32)>,
 }

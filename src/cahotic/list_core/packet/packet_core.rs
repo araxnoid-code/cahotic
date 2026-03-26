@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    ExecTask, OutputTrait, Packet, PollWaiting, Schedule, ScheduleTask, SchedulerTrait, TaskTrait,
-    WaitingTask,
+    ExecTask, OutputTrait, Packet, PollWaiting, Schedule, ScheduleSlot, ScheduleTask,
+    SchedulerTrait, TaskTrait, WaitingTask,
 };
 
 pub struct PacketCore<F, FS, O, const PN: usize>
@@ -17,8 +17,12 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
+    //
+    // // packet
     pub packet_list: AtomicPtr<[Packet<F, FS, O, PN>; 64]>,
     pub packet_len: usize,
+    // // schedule
+    pub schedule_list: AtomicPtr<[ScheduleSlot<F, FS, O>; 64]>,
     //
     pub empty_bitmap: AtomicU64,
     pub ready_bitmap: AtomicU64,
@@ -41,6 +45,9 @@ where
                 Packet::init(i)
             })))),
             packet_len: PN,
+            schedule_list: AtomicPtr::new(Box::into_raw(Box::new(array::from_fn(|i| {
+                ScheduleSlot::init(i)
+            })))),
             //
             empty_bitmap: AtomicU64::new(u64::MAX),
             ready_bitmap: AtomicU64::new(0),
@@ -52,7 +59,7 @@ where
         }
     }
 
-    fn set_use_packet(&self) {
+    pub(crate) fn set_use_packet(&self) {
         let empty_bitmap = self.empty_bitmap.load(Ordering::Acquire);
         let index = empty_bitmap.trailing_zeros();
         if index != 64 {
@@ -117,6 +124,7 @@ where
                     _id: id_counter,
                     task: ExecTask::Task(task),
                     return_ptr: Some(return_ptr),
+                    poll_child: vec![],
                 };
                 packet.task[idx] = Some(waiting_task);
                 packet.drop[idx] = Some((return_ptr, None));
@@ -166,6 +174,7 @@ where
                         _id: id_counter,
                         task: ExecTask::<F, FS, O>::Task(task),
                         return_ptr: Some(return_ptr),
+                        poll_child: vec![],
                     }
                 } else if let (
                     ScheduleTask::Schedule(task),
@@ -187,6 +196,7 @@ where
                             candidate_packet,
                         ),
                         return_ptr: Some(return_ptr),
+                        poll_child: vec![],
                     }
                 } else {
                     panic!()

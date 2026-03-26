@@ -71,11 +71,11 @@ where
         let return_ptr = after.return_ptr;
         let candidate_idx = after.candidate_packet_idx;
 
-        if let (Some(schedule_vec), Some(candidate_idx_vec)) =
+        if let (Some(schedule_vec), Some(candidate_packet_vec)) =
             (&mut self.shcedule_vec, &mut self.candidate_packet_vec)
         {
             schedule_vec.push(return_ptr);
-            candidate_idx_vec.push(candidate_idx);
+            candidate_packet_vec.push(candidate_idx);
         } else {
             return Err("error, schedule_vec or candidate_idx_vec is not set in schedule");
         }
