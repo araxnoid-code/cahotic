@@ -10,7 +10,7 @@ use std::{
     thread::{JoinHandle, spawn},
 };
 
-use crate::{ListCore, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
+use crate::{OutputTrait, SchedulerTrait, TaskCore, TaskTrait, ThreadUnit};
 
 pub struct ThreadPoolCore<F, FD, O, const N: usize, const PN: usize>
 where
@@ -26,7 +26,7 @@ where
     pub(crate) join_flag: Arc<AtomicBool>,
 
     // list core
-    list_core: Arc<ListCore<F, FD, O, PN>>,
+    list_core: Arc<TaskCore<F, FD, O, PN>>,
 }
 
 impl<F, FD, O, const N: usize, const PN: usize> ThreadPoolCore<F, FD, O, N, PN>
@@ -35,7 +35,7 @@ where
     FD: SchedulerTrait<O> + Send + 'static + Sync,
     O: OutputTrait + Send + Sync,
 {
-    pub fn init(list_core: Arc<ListCore<F, FD, O, PN>>) -> ThreadPoolCore<F, FD, O, N, PN> {
+    pub fn init(list_core: Arc<TaskCore<F, FD, O, PN>>) -> ThreadPoolCore<F, FD, O, N, PN> {
         // handler
         let join_flag = Arc::new(AtomicBool::new(false));
         let done_task = Arc::new(AtomicU64::new(0));
@@ -73,7 +73,7 @@ where
                 }
 
                 // running
-                thread_unit.running_packet();
+                thread_unit.running();
             })
         });
 

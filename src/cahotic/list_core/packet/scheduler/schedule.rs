@@ -5,11 +5,11 @@ use std::{
 };
 
 use crate::{
-    ExecTask, ListCore, OutputTrait, PacketCore, PollWaiting, Schedule, ScheduleTask,
-    SchedulerTrait, TaskTrait, WaitingTask,
+    ExecTask, OutputTrait, PacketCore, PollWaiting, SchedulerTrait, TaskCore, TaskTrait,
+    WaitingTask,
 };
 
-pub(crate) enum ScheduleWaitTask<F, FS, O>
+pub(crate) enum ScheduleTask<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
@@ -22,14 +22,14 @@ where
     _Phantom(O),
 }
 
-pub struct ScheduleWait<F, FS, O>
+pub struct Schedule<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     // task
-    pub(crate) task: ScheduleWaitTask<F, FS, O>,
+    pub(crate) task: ScheduleTask<F, FS, O>,
 
     // running
     pub(crate) return_ptr: &'static AtomicPtr<O>,
@@ -51,10 +51,10 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn create_task_schedule(&self, task: F) -> ScheduleWait<F, FS, O> {
+    pub fn create_task_schedule(&self, task: F) -> Schedule<F, FS, O> {
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
-        ScheduleWait {
-            task: ScheduleWaitTask::Task(task),
+        Schedule {
+            task: ScheduleTask::Task(task),
             candidate_done_counter: 1,
             candidate_packet_idx: Box::leak(Box::new(AtomicUsize::new(64))),
             poll_child: vec![],
@@ -65,13 +65,13 @@ where
         }
     }
 
-    pub fn create_schedule(&self, schedule: FS) -> ScheduleWait<F, FS, O> {
+    pub fn create_schedule(&self, schedule: FS) -> Schedule<F, FS, O> {
         let allocated_idx = self.allocate_schedule_bitmap();
 
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
         let poll_counter = Box::leak(Box::new(AtomicUsize::new(0)));
-        ScheduleWait {
-            task: ScheduleWaitTask::Schedule(schedule, allocated_idx),
+        Schedule {
+            task: ScheduleTask::Schedule(schedule, allocated_idx),
             return_ptr,
             candidate_done_counter: 1,
             candidate_packet_idx: Box::leak(Box::new(AtomicUsize::new(64))),
@@ -84,11 +84,11 @@ where
 
     pub fn schedule_after(
         &self,
-        schedule: &mut ScheduleWait<F, FS, O>,
-        after: &mut ScheduleWait<F, FS, O>,
+        schedule: &mut Schedule<F, FS, O>,
+        after: &mut Schedule<F, FS, O>,
     ) -> Result<(), &'static str> {
         let (allocated_idx, poll_counter) =
-            if let (ScheduleWaitTask::Schedule(_, allocated_idx), Some(poll_counter)) =
+            if let (ScheduleTask::Schedule(_, allocated_idx), Some(poll_counter)) =
                 (&schedule.task, schedule.poll_counter)
             {
                 poll_counter.fetch_add(1, Ordering::Release);
@@ -116,9 +116,9 @@ where
         Ok(())
     }
 
-    pub fn execute_schedule(
+    pub fn add_schedule(
         &self,
-        schedule: ScheduleWait<F, FS, O>,
+        schedule: Schedule<F, FS, O>,
         id_counter: u64,
         in_task: &AtomicU64,
     ) -> PollWaiting<O> {
@@ -145,7 +145,7 @@ where
                 // create return_ptr
                 let return_ptr: &'static AtomicPtr<O> = schedule.return_ptr;
 
-                if let ScheduleWaitTask::Task(task) = schedule.task {
+                if let ScheduleTask::Task(task) = schedule.task {
                     let waiting_task = WaitingTask {
                         _id: id_counter,
                         task: ExecTask::<F, FS, O>::Task(task),
@@ -155,7 +155,7 @@ where
 
                     packet.task[idx] = Some(waiting_task);
                 } else if let (
-                    ScheduleWaitTask::Schedule(task, allocated_idx),
+                    ScheduleTask::Schedule(task, allocated_idx),
                     Some(schedule_vec),
                     Some(candidate_packet),
                 ) = (
@@ -192,7 +192,7 @@ where
             } else {
                 packet.head.fetch_sub(1, Ordering::Release);
                 let _ = self.submit_packet(in_task);
-                self.execute_schedule(schedule, id_counter, in_task)
+                self.add_schedule(schedule, id_counter, in_task)
             }
         }
     }
@@ -214,20 +214,5 @@ where
             .fetch_and(masking, Ordering::Release);
 
         index
-    }
-}
-
-impl<F, FS, O, const PN: usize> ListCore<F, FS, O, PN>
-where
-    F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
-    O: 'static + OutputTrait + Send,
-{
-    pub fn schedule_wait_exec(&self, schedule: ScheduleWait<F, FS, O>) -> PollWaiting<O> {
-        self.packet_core.execute_schedule(
-            schedule,
-            self.id_counter.fetch_add(1, Ordering::Release),
-            &self.in_task,
-        )
     }
 }

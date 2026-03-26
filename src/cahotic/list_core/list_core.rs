@@ -2,7 +2,7 @@ use std::sync::{Arc, atomic::AtomicU64};
 
 use crate::{OutputTrait, PacketCore, SchedulerTrait, TaskTrait};
 
-pub struct ListCore<F, FS, O, const PN: usize>
+pub struct TaskCore<F, FS, O, const PN: usize>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
@@ -18,13 +18,13 @@ where
     pub packet_core: PacketCore<F, FS, O, PN>,
 }
 
-impl<F, FD, O, const PN: usize> ListCore<F, FD, O, PN>
+impl<F, FD, O, const PN: usize> TaskCore<F, FD, O, PN>
 where
     F: TaskTrait<O> + Send + 'static,
     FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn init() -> ListCore<F, FD, O, PN> {
+    pub fn init() -> TaskCore<F, FD, O, PN> {
         Self {
             // id
             id_counter: AtomicU64::new(1),

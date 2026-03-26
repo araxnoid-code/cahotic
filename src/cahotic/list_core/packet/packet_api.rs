@@ -1,8 +1,8 @@
 use std::sync::atomic::Ordering;
 
-use crate::{ListCore, OutputTrait, Packet, SchedulerTrait, TaskTrait};
+use crate::{OutputTrait, Packet, SchedulerTrait, TaskCore, TaskTrait};
 
-impl<F, FS, O, const PN: usize> ListCore<F, FS, O, PN>
+impl<F, FS, O, const PN: usize> TaskCore<F, FS, O, PN>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,

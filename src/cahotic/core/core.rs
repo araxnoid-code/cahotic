@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    ListCore, OutputTrait, PollWaiting, Schedule, SchedulerTrait, TaskTrait, ThreadPoolCore,
+    OutputTrait, PollWaiting, Schedule, SchedulerTrait, TaskCore, TaskTrait, ThreadPoolCore,
 };
 
 pub struct Cahotic<F, FS, O, const N: usize, const PN: usize>
@@ -11,7 +11,7 @@ where
     O: 'static + OutputTrait + Send,
 {
     // List Core
-    pub list_core: Arc<ListCore<F, FS, O, PN>>,
+    pub list_core: Arc<TaskCore<F, FS, O, PN>>,
 
     // thread pool Core
     thread_pool_core: ThreadPoolCore<F, FS, O, N, PN>,
@@ -24,7 +24,7 @@ where
     O: 'static + OutputTrait + Send + Sync,
 {
     pub fn init() -> Cahotic<F, FS, O, N, PN> {
-        let list_core = Arc::new(ListCore::<F, FS, O, PN>::init());
+        let list_core = Arc::new(TaskCore::<F, FS, O, PN>::init());
         let thread_pool_core = ThreadPoolCore::<F, FS, O, N, PN>::init(list_core.clone());
         Self {
             list_core,

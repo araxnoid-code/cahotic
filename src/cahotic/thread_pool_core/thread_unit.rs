@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use crate::{ListCore, OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
+use crate::{OutputTrait, SchedulerTrait, TaskCore, TaskTrait, WaitingTask};
 
 pub struct ThreadUnit<F, FS, O, const PN: usize>
 where
@@ -27,7 +27,7 @@ where
     pub(crate) done_task: Arc<AtomicU64>,
 
     // // list core
-    pub(crate) list_core: Arc<ListCore<F, FS, O, PN>>,
+    pub(crate) list_core: Arc<TaskCore<F, FS, O, PN>>,
 
     // packet
     // // packet
