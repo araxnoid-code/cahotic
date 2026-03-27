@@ -64,6 +64,7 @@ where
                     use_drop_idx: 64,
                     masking_drop_idx: 64,
                     drop_counter: 0,
+                    sch_counter: 0,
                     masking_sch_idx: 64,
                     use_sch_idx: 64,
                 };

@@ -127,7 +127,7 @@ where
                     poll_child: vec![],
                 };
                 packet.task[idx] = Some(waiting_task);
-                packet.drop[idx] = Some((return_ptr, None));
+                packet.drop[idx] = Some((return_ptr, None, None));
 
                 PollWaiting {
                     data_ptr: return_ptr,

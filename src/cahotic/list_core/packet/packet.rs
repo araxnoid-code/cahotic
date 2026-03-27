@@ -16,7 +16,11 @@ where
     pub(crate) _id: usize,
     //
     pub(crate) task: [Option<WaitingTask<F, FS, O>>; PN],
-    pub(crate) drop: [Option<(&'static AtomicPtr<O>, Option<&'static AtomicUsize>)>; PN],
+    pub(crate) drop: [Option<(
+        &'static AtomicPtr<O>,
+        Option<&'static AtomicUsize>,
+        Option<&'static AtomicUsize>,
+    )>; PN],
     pub(crate) tail: AtomicUsize,
     pub(crate) head: AtomicUsize,
     pub(crate) done_counter: &'static AtomicUsize,

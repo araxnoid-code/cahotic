@@ -5,8 +5,7 @@ use std::{
 };
 
 use crate::{
-    ExecTask, OutputTrait, PacketCore, PollWaiting, SchedulerTrait, TaskCore, TaskTrait,
-    WaitingTask,
+    ExecTask, OutputTrait, PacketCore, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask,
 };
 
 pub(crate) enum ScheduleTask<F, FS, O>
@@ -51,7 +50,7 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn create_task_schedule(&self, task: F) -> Schedule<F, FS, O> {
+    pub fn scheduling_create_task(&self, task: F) -> Schedule<F, FS, O> {
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
         Schedule {
             task: ScheduleTask::Task(task),
@@ -65,7 +64,7 @@ where
         }
     }
 
-    pub fn create_schedule(&self, schedule: FS) -> Schedule<F, FS, O> {
+    pub fn scheduling_create_schedule(&self, schedule: FS) -> Schedule<F, FS, O> {
         let allocated_idx = self.allocate_schedule_bitmap();
 
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
@@ -163,20 +162,17 @@ where
                     schedule.shcedule_vec,
                     schedule.candidate_packet_vec,
                 ) {
-                    let len = schedule_vec.len();
                     let waiting_task = WaitingTask {
                         _id: id_counter,
                         task: ExecTask::<F, FS, O>::Scheduling(
                             task,
                             schedule_vec,
-                            if len == 0 { 0 } else { len - 1 },
                             use_packet_idx,
                             candidate_packet,
                         ),
                         return_ptr: Some(return_ptr),
                         poll_child: schedule.poll_child,
                     };
-                    packet.head.fetch_sub(1, Ordering::Release);
 
                     *(&mut (*self.schedule_list.load(Ordering::Acquire))[allocated_idx as usize]
                         .schedule) = Some(waiting_task);
@@ -184,7 +180,11 @@ where
                     panic!()
                 };
 
-                packet.drop[idx] = Some((return_ptr, Some(schedule.candidate_packet_idx)));
+                packet.drop[idx] = Some((
+                    return_ptr,
+                    Some(schedule.candidate_packet_idx),
+                    schedule.poll_counter,
+                ));
 
                 PollWaiting {
                     data_ptr: return_ptr,

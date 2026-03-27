@@ -9,10 +9,6 @@ where
     O: OutputTrait + 'static,
 {
     fn execute(&self) -> O;
-
-    fn is_with_dependencies() -> bool {
-        false
-    }
 }
 
 // scheduler

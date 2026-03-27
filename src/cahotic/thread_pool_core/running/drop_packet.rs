@@ -35,6 +35,7 @@ where
 
             let drop_idx = self.use_drop_idx;
             if drop_idx != 64 {
+                self.break_counter = 0;
                 let masking = 1_u64 << drop_idx;
                 let mut bitmap = self
                     .list_core
@@ -46,7 +47,9 @@ where
                 if bitmap != 0 {
                     let packet = &mut self.list_core.load_packet_list()[drop_idx];
                     for i in 0..packet.head.load(Ordering::Acquire) {
-                        if let Some((return_ptr, candidate_ptr)) = packet.drop[i].take() {
+                        if let Some((return_ptr, candidate_ptr, poll_counter)) =
+                            packet.drop[i].take()
+                        {
                             unsafe {
                                 drop(Box::from_raw(
                                     return_ptr.swap(null_mut(), Ordering::Release),
@@ -54,9 +57,16 @@ where
                                 drop(Box::from_raw(
                                     return_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
                                 ));
+
                                 if let Some(candidate_ptr) = candidate_ptr {
                                     drop(Box::from_raw(
                                         candidate_ptr as *const AtomicUsize as *mut AtomicUsize,
+                                    ));
+                                }
+
+                                if let Some(poll_counter) = poll_counter {
+                                    drop(Box::from_raw(
+                                        poll_counter as *const AtomicUsize as *mut AtomicUsize,
                                     ));
                                 }
                             }

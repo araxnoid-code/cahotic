@@ -13,7 +13,6 @@ where
         FS,
         Vec<&'static AtomicPtr<O>>,
         usize,
-        usize,
         Vec<&'static AtomicUsize>,
     ),
     Output(O),

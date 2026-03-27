@@ -56,7 +56,7 @@ where
                         let output = Box::into_raw(Box::new(f.execute()));
                         task.return_ptr.unwrap().store(output, Ordering::Release);
 
-                        // clear child
+                        // update child
                         let poll_child = task.poll_child;
                         for (counter, schedule_idx) in poll_child {
                             let counter = counter.fetch_sub(1, Ordering::Release);
@@ -80,8 +80,8 @@ where
                         }
                         spin_loop();
                     }
-                    ExecTask::Scheduling(_, _, _, _, _) => {
-                        self.scheduling_queue.push_back(task);
+                    ExecTask::Scheduling(_, _, _, _) => {
+                        // self.scheduling_queue.push_back(task);
                     }
                     _ => panic!(),
                 };
