@@ -1,12 +1,9 @@
-use std::{
-    collections::VecDeque,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, AtomicU64},
-    },
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, AtomicU64},
 };
 
-use crate::{OutputTrait, SchedulerTrait, TaskCore, TaskTrait, WaitingTask};
+use crate::{OutputTrait, SchedulerTrait, TaskCore, TaskTrait};
 
 pub struct ThreadUnit<F, FS, O, const PN: usize>
 where
@@ -18,8 +15,6 @@ where
     // // unique
     pub(crate) _id: usize,
     pub(crate) break_counter: u64,
-    // // drop-stack
-    pub(crate) scheduling_queue: VecDeque<WaitingTask<F, FS, O>>,
 
     // share
     // // thread_pool

@@ -46,7 +46,6 @@ where
                     .fetch_and(masking, Ordering::Release);
             } else if tail + 1 > PN {
                 self.use_packet_idx = 64;
-                spin_loop();
                 continue;
             }
 
@@ -78,16 +77,12 @@ where
                                 .drop_bitmap
                                 .fetch_or(1 << packet_idx, Ordering::Release);
                         }
-                        spin_loop();
                     }
                     ExecTask::Scheduling(_, _, _, _) => {
                         // self.scheduling_queue.push_back(task);
                     }
                     _ => panic!(),
                 };
-            } else {
-                spin_loop();
-                continue;
             }
         }
     }

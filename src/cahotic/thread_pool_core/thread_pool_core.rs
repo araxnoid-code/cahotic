@@ -1,6 +1,5 @@
 use std::{
     array,
-    collections::VecDeque,
     hint::spin_loop,
     ptr::null_mut,
     sync::{
@@ -55,7 +54,6 @@ where
                 let mut thread_unit = ThreadUnit {
                     _id: id,
                     break_counter: 0,
-                    scheduling_queue: VecDeque::with_capacity(1024),
                     done_task: done_task_clone,
                     join_flag: join_flag_clone,
                     list_core: list_core_clone,
