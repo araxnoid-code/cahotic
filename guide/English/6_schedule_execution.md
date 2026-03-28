@@ -3,21 +3,21 @@
 fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
 
-    let mut poll1 = cahotic.scheduling_create_task(MyTask::Task(|| {
+    let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
         sleep(Duration::from_millis(1000));
         println!("task 1 done");
         MyOutput::Result(10)
     }));
 
-    let mut poll2 = cahotic.scheduling_create_task(MyTask::Task(|| {
+    let mut poll2 = cahotic.scheduling_create_initial(MyTask::Task(|| {
         sleep(Duration::from_millis(500));
         println!("task 2 done");
         MyOutput::Result(20)
     }));
 
-    // untuk poll3 dapat mengakses value poll1 dan value poll2. poll3 harus ketergantungan terlebih dahulu dengan poll1 dan poll2
+    // for poll3 to access the value of poll1 and the value of poll2. poll3 must first depend on poll1 and poll2
     let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
-        // dalam mengakses index, bersarkan dari urutan penjadwalan dengan poll1 dan poll2
+        // in accessing the index, based on the scheduling order with poll1 and poll2
         let value_1 = schedule_vec.get(0);
         let value_2 = schedule_vec.get(1);
         println!(
@@ -27,7 +27,7 @@ fn main() {
         MyOutput::None
     }));
 
-    // urutan penjadwalan akan mempengaruhi index mengakses poll1 dan poll2 oleh poll3 
+    // scheduling order will affect the index accessing poll1 and poll2 by poll3
     cahotic.schedule_after(&mut poll3, &mut poll1).unwrap(); // index 0
     cahotic.schedule_after(&mut poll3, &mut poll2).unwrap(); // index 1
 
@@ -40,43 +40,42 @@ fn main() {
     cahotic.join();
 }
 ```
-dari code diatas dapat disimpulkna:
-1. awalan schedule adalah poll1 dan poll2.
-2. schedule poll3 bergantung kepada poll1 dan poll2.
+From the code above it can be concluded:
+1. schedule prefixes are poll1 and poll2.
+2. schedule poll3 depends on poll1 and poll2.
 
 <img width="400" src="./../img/schedule_img_1.png">
 
-diawali dengan membuat schedule awalan yang dibuat menggunakan `Cahotic::scheduling_create_task(&self, F)`
+begins by creating an initial schedule that is created using `Cahotic::scheduling_create_initial(&self, F)`
 ```rust
-let mut poll1 = cahotic.scheduling_create_task(MyTask::Task(|| {
+let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
     sleep(Duration::from_millis(1000));
     println!("task 1 done");
     MyOutput::Result(10)
 }));
 
-let mut poll2 = cahotic.scheduling_create_task(MyTask::Task(|| {
+let mut poll2 = cahotic.scheduling_create_initial(MyTask::Task(|| {
     sleep(Duration::from_millis(500));
     println!("task 2 done");
     MyOutput::Result(20)
 }));
 ```
-`poll1` dan `poll2` akan memiliki value bertipe `Schedule<F, FS, O>`
+`poll1` and `poll2` will have a value of type `Schedule<F, FS, O>`
 ```
 note:
 - F: Type that implements TaskTrait (for regular tasks)
 - FS: Type that implements SchedulerTrait (for scheduled tasks with dependencies)
 - O: Type that implements OutputTrait (return value of tasks)
 ```
-saat membuat schedule awalan, tidak ada perubahan yang terjadi pada cahotic. disini hanyalah membuat type data `Schedule` saja yang akan mengumpulkan segala interaksi terlebih dahulu dan baru akan dieksekusi oleh `cahotic` melalui:
+When creating the initial schedule, no changes are made to `cahotic`. Here, we only create the `Schedule` data type, which will first collect all interactions and then be executed by `cahotic` via:
 ```rust
-cahotic.schedule_exec(poll2); // → masuk ke schedule_list, menunggu counter
-cahotic.schedule_exec(poll1); // → langsung masuk ke packet task list
+cahotic.schedule_exec(poll2); // → go directly to the packet task list
+cahotic.schedule_exec(poll1); // → go directly to the packet task list
 ```
 
-untuk shcedule(schedule normal), membuatnya melalui `Cahotic::scheduling_create_schedule(&self, FS)`
+for normal schedule, create it via `Cahotic::scheduling create schedule(&self, FS)`
 ```rust
 let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
-    // dalam mengakses index, bersarkan dari urutan penjadwalan dengan poll1 dan poll2
     let value_1 = schedule_vec.get(0);
     let value_2 = schedule_vec.get(1);
     println!(
@@ -86,33 +85,33 @@ let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_ve
     MyOutput::None
 }));
 ```
-code diatas akan langsung mengalokasikan space yang disebut `schedule_list` yang menunggu di dalam hingga siap untuk dieksekusi, `schedule_list` sendiri dapat menampung 64 schedule dalam satu waktu, jika `schedule_list` penuh maka `packet-core` akan mengalami blocking hingga ada space pada `schedule_list` kosong. `packet-core` mengalokasikan schedule pada `schedule_list` menggunakan `allo-schedule-bitmap`, mekanismenya mirip dengan `packet-core` mencari packet melalui `empty-bitmpa`.
+The code above will immediately allocate space on the `schedule_list` which is waiting inside until it is ready to be executed, The `schedule list` itself can accommodate 64 schedules at one time. If the `schedule_list` is full, the `packet-core` will experience blocking until there is free space in the `schedule_list`. `packet-core` allocates schedules on `schedule_list` using `allo-schedule-bitmap`, the mechanism is similar to `packet-core` searching for packets via `empty-bitmap`.
 
-para thread di dalam thread pool juga secara berkala melakukan pengechekan cepat untuk melihat apakah ada task schedule yang siap untuk dieksekusi menggunakan `poll-shcedule-bitmap`, mekanismenya mirip dengan `drop-bitmap` dan `ready-bitmap`.
+The threads in the thread pool also periodically perform a quick check to see if there are any scheduled tasks ready for execution using `poll-schedule-bitmap`, a mechanism similar to `drop-bitmap` and `ready-bitmap`.
 
 ```rust
 cahotic.schedule_after(&mut poll3, &mut poll1).unwrap();
 cahotic.schedule_after(&mut poll3, &mut poll2).unwrap();
 ```
-pada baris ini, poll3 akan dieksekusi saat poll1 dan poll2 telah selesai dieksekusi. secara teknis poll3 memiliki `poll_counter` yang mana akan bertambah seiring penjadwalan pada poll3 dilakukan, serta poll1 dan poll2 juga akan menyimpan `poll_counter` milik poll3. 
+In this line, poll3 will be executed when poll1 and poll2 have finished executing. Technically, poll3 has a `poll_counter` which will increase as poll3 is scheduled, and poll1 and poll2 will also store poll3's `poll_counter`.
 
 ```rust
-cahotic.schedule_exec(poll3); // → masuk ke schedule_list, menunggu counter
-cahotic.schedule_exec(poll2); // → langsung masuk ke packet task list
-cahotic.schedule_exec(poll1); // → langsung masuk ke packet task list
+cahotic.schedule_exec(poll3); // → enter the schedule list, waiting for the counter
+cahotic.schedule_exec(poll2); // → go directly to the packet task list
+cahotic.schedule_exec(poll1); // → go directly to the packet task list
 
 cahotic.submit_packet();
 ```
-pada baris diatas, maka semua schedule yang dibuat harus dieksekusi. mekanisemenya sesuai dengan penjelasan pada [2_schedule.md](2_schedule.md).
-untuk schedule awalan dan schedule memiliki penanganan yang berbeda saat dieksekusi, schedule awalan masih sama dengan task biasa namun berbeda hanya pada penanganan counter saat setelah di eksekusi, namun schedule sejatinya langsung dikirim ke `schedule_list` bukan ke `task-list` yang ada di dalam packet, namun packet masihlah menghitungnya dan mengasumsikan ada task di sana, ini diperlukan untuk drop schedule nantinya yang akan ikut di drop juga pada bersama task-task lainnya di dalam packet.
+In the line above, all schedules created must be executed. The mechanism is in accordance with the explanation in [2_schedule.md](2_schedule.md).
+for initial schedule and normal schedule have different handling when executed, The initial schedule is still the same as a regular task, but the only difference is in the handling of the counter after execution, but the normal schedule is actually sent directly to the `schedule_list` not to the `task-list` in the packet, but the packet still calculates it and assumes there is a task there, This is needed for the drop schedule later, which will also be dropped along with other tasks in the packet.
 
-pada contoh kode diatas, poll3 memiliki `poll_counter` bernilai 2 dan di daat poll2 selesai maka thread yang mengeksekusi poll2 akan mengurangi `poll_counter` dan thread yang menyelesaikan poll1 juga akan mengurangi `poll_counter` sehingga `poll_counter` bernilai 0. di saat itulah thread yang mendapatkan `poll_counter` == 0 yang akan mengaktifkan bitmap pada `poll-shcedule-bitmap` sesuai dengan index yang ditempati oleh schdeule poll3.
+In the code example above, poll3 has a `poll_counter` value of 2 and when poll2 is finished, the thread executing poll2 will reduce the `poll_counter` and the thread completing poll1 will also reduce the `poll_counter` so that the `poll_counter` has a value of 0. at that time the thread that gets `poll_counter` == 0 will activate the bitmap on `poll-schedule-bitmap` according to the index occupied by the poll3 schedule.
 
-`poll-shcedule-bitmap` akan secara berkala diperiksa secara cepat oleh para thread pada thread poll, masih menggunakan konsep yang sama dengan mekanisme drop pada drop-bitmap, thread yang mendapatkan signal dari `poll-shcedule-bitmap` akan mengeksekusi schedule pada `schedule_list` lalu setelah itu akan mengupdate `allo-schedule-bitmap` untuk dapat dialokasikan oleh `packet-core` untuk schedule yang baru.
+`poll-schedule-bitmap` will be periodically checked quickly by the threads on the poll thread, still using the same concept as the drop mechanism on `drop-bitmap`, the thread that gets the signal from `poll-schedule-bitmap` will execute the schedule on `schedule_list` and then after that will update `allo-schedule-bitmap` to be allocated by `packet-core` for the new schedule.
 
 <img width="400" src="./../img/schedule_execution.png">
     
-penjelasan:
-1. schedule noraml dan schedule awalan dibuat lalu dieksekusi ke dalam `packet-core`
-2. `packet-core` akan mengolah schedule tersebut serta menempatinya ke dalam `task-list` pada packet dan `schedule-list` pada `packet-core`. untuk schedule normal masih diasumsikan masuk kedalam packet namun secara fisik masuk ke dalam `schedule-list`.
-3. para thread dalam thread pool akan mengeksekusi packet yang ready lalu di saat thread mendapati `poll_counter` maka thread akan langsung mengupdate `poll-schedule-bitmap`. thread juga secara berkala akan check `allo-schedule-bitmap` untuk mengeksekusi schedule yang sudah siap untuk di eksekusi.
+explanation:
+1. The normal schedule and initial schedule that have been created are executed into `packet-core`
+2. `packet-core` will process the schedule and place it into the `task-list` in the packet and the `schedule-list` in `packet-core`. For normal schedules, they are still assumed to be in the packet but are physically included in the `schedule-list`.
+3. The threads in the thread pool will execute the ready packets and then when the thread finds the `poll_counter`, the thread will immediately update the `poll-schedule-bitmap`. Threads will also periodically check `poll-schedule-bitmap` to execute schedules that are ready to be executed.

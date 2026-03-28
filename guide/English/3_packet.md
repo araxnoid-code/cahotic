@@ -20,12 +20,12 @@ fn main() {
     cahotic.join();
 }
 ```
-pada code diatas, cahotic tidak akan langsung mengirim task yang telah disepawn ke dalam thread pool, namun di masukkan terlebih dahulu ke dalam `packet`.
+In the code above, cahotic will not immediately send the task that has been spawned into the thread pool, but will first put it into a `packet`.
 
 <img width="400" src="./../img/packet_submit.png">
     
-penjelasan:
-1. task dibuat terlebih dahulu
+explanation:
+1. task created first
 ```rust
 MyTask::Task(|| {
     sleep(Duration::from_millis(1000));
@@ -33,7 +33,7 @@ MyTask::Task(|| {
     MyOutput::None
 }
 ```
-2. menggunakan method `Cahotic::spawn_task(&self, F)`. untuk membuat menjadikannya `WaitingTask`.
+2. using the method `Cahotic::spawn_task(&self, F)`. to make it `WaitingTask`.
 ```rust
 cahotic.spawn_task(MyTask::Task(|| {
     sleep(Duration::from_millis(1000));
@@ -41,29 +41,29 @@ cahotic.spawn_task(MyTask::Task(|| {
     MyOutput::None
 }));
 ```
-3.  Waiting Task tidak langsung di eksekusi ke dalam thread pool, namun harus menunggu dan di kumpulkan ke dalam packet, jadi thread pool akan menerima task dalam kumpulan batch.
-4. menggunakan method `Cahotic::submit_packet(&self)`
+3. Waiting Tasks are not directly executed into the thread pool, but must wait and be collected into packets, so the thread pool will receive tasks in batches.
+4. using the method `Cahotic::submit_packet(&self)`
 ```rust
 cahotic.submit_packet();
 ```
-5. saat submit, sebenarnya tidak mengirim packet ke thread pool, namun akan update `ready-bitmap`, `ready-bitmap` adalah bitmap yang berfungsi untuk menjadi pemetaan serta sebagai pemberi status, penggunaan bitmap di gunakan karena ringan namun dapat melakukan scanning dengan cepat.
-6. di saat `ready-bitmap` di update yang awalnya 0 menjadi 1, maka thread pool dapat mengeksekusinya.
+5. When submitting, it does not actually send a packet to the thread pool, but will update the `ready-bitmap`, `ready-bitmap` is a bitmap that functions as a mapping and as a status provider, the use of bitmaps is used because they are light but can scan quickly.
+6. when `ready-bitmap` is updated from 0 to 1, the thread pool can execute it.
 
-di saat submit main thread akan langsung mencari packet yang kosong untuk dijadikan penampung task-task yang akan datang selanjutnya.
+When submitting, the main thread will immediately look for an empty packet to be used as a container for the tasks that will come next.
 
 <img width="400" src="./../img/packet_after_submit.png">
     
-gambar diatas, kita mengganti `main pool` menjadi `packet-core`. secara keseluruhan sama dengan penjelasan diatas, namun secara teknis penamaan pada `cahotic` yang mengurus semua administrasi packet disebut `packet-core`.
-penjelasannya
-1. `packet-core` saat awal inisialisasi tidak menunjuk pada packet apapun. oleh karena itu `packet-core` akan mencari packet yang kosong menggunakan `empty-bitmap`.
-2. disaat `packet-core` menemukan packet yang kosong, packet itulah yang akan menampung task-task yang akan masuk.
-3. packet di `submit`
-4. `packet-core` akan update ready-bitmap.
-5. `thread pool` akan mengechek bitmap tersebut dan mendapatkan informasi dimana lokasi dan status dari packet tersebut.
-6. `packet-core` kini tidak memiliki packet tujuan, oleh karena itu `packet-core` akan mencari packet yang kosong.
-7. setelah packet kosong di temukan, maka `packet-core` akan menjadikannya penampung untuk task-task yang akan datang.
+In the image above, we replace `main pool` with `packet-core`. Overall, it's the same as the explanation above, but technically, the name for the `cahotic` that handles all packet administration is called `packet-core`.
+the explanation
+1. `packet-core` does not point to any packets during initialization. Therefore, `packet-core` will search for empty packets using `empty-bitmap`.
+2.  When `packet-core` finds an empty packet, that packet will accommodate the incoming tasks.
+3.  packet submitted
+4. `packet-core` will update ready-bitmap.
+5. `thread pool` will check the bitmap and get information about the location and status of the packet.
+6. `packet-core` now has no destination packet, therefore `packet-core` will look for an empty packet.
+7.  Once an empty packet is found, `packet-core` will make it a container for future tasks.
 
-`packet-core` memiliki 64 packet yang masing-masing kapasitasnya dapat diataur melalui notasi daat inisialisasi `Cahotic`
+`packet-core` has 64 packets, each of which has a capacity that can be set using the initialization notation `Cahotic`
 ```
 Cahotic::<F, FS, O, N, PN>::init();
 Cahotic generic parameters:
@@ -73,18 +73,18 @@ Cahotic generic parameters:
 - N: Number of worker threads (const generic)
 - PN: Packet capacity — maximum tasks per packet (const generic)
 ```
-berdasarkan code struktur inisialisasi diatas, kapasitas dari packet dapat diatur melalui `PN`
+Based on the initialization structure code above, the capacity of the packet can be set via `PN`
 
-note!: ada beberapa kondisi khusus dari `packet-core` ini
-1. jika packet penuh lalu ada task yang masuk, maka `packet-core` akan secara otomatis submit packet tersebut dan mencari packet kosong.
-2. jika `packet-core` mencari packet kosong, namun mendapati seluruh packet penuh, maka akan terjadinya blocking disini hingga `packet-core` mendapatkan packet yang kosong.
+note!: there are some special conditions of this `packet-core`
+1. If the packet is full and a task comes in, then `packet-core` will automatically submit the packet and look for an empty packet.
+2. If `packet-core` searches for empty packets, but finds all packets are full, then blocking will occur here until `packet-core` finds an empty packet.
 
-sebagai informasi tambahan, packet disimpan di sebuah array sebesar 64, oleh karena itu `empty-bimtap` dan `ready-bimtap` akan berukuran 64 bit yang berguna bukan hanya mendapatkan status namun juga sekaligus mendapatkan posisi secara cepat.
-contoh
+as additional information, packets are stored in an array of 64, therefore `empty-bimtap` and `ready-bimtap` will be 64 bits in size which is useful not only for getting status but also for getting position quickly.
+example
 ```
 [empty, empty, ready, empty, ready, ready]
 empty-bimtap: 110100
 ready-bimtap: 001011
 ```
 
-ada kasus khusus untuk `scheduling`, `schedule` yang menjadi awalan masih akan tetap tertampung ke dalam packet, namun schedule yang tidak menjadi awalan hanya akan ikut tertampung ke dalam packet juga, namun hanya sekedar untuk ikut dibersihkan. Secara teknis schedule akan masuk ke dalam `schedule-list`. kita akan bahas ini nanti.
+There's a special case for scheduling. The initial schedule will still be included in the packet, but the normal schedule will be considered included in the packet, but only for cleaning purposes. Technically, the schedule will be included in the schedule-list. We'll discuss this later.

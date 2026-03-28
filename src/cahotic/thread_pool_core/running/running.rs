@@ -1,4 +1,9 @@
-use std::{hint::spin_loop, sync::atomic::Ordering, thread::yield_now};
+use std::{
+    hint::spin_loop,
+    sync::atomic::Ordering,
+    thread::{park_timeout, yield_now},
+    time::Duration,
+};
 
 use crate::{ExecTask, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
 
@@ -25,10 +30,13 @@ where
             let packet_idx = self.use_packet_idx;
             if packet_idx == 64 {
                 self.get_idx_packet();
-                if self.break_counter < 1000 {
+                if self.break_counter < 100 {
                     spin_loop();
-                } else {
+                } else if self.break_counter < 1000 {
                     yield_now();
+                } else {
+                    park_timeout(Duration::from_millis(10));
+                    self.break_counter = 0;
                 }
                 self.break_counter += 1;
                 continue;

@@ -10,7 +10,7 @@ pada task juga memiliki head, namun head berfungsi untuk drop dan packet-core.
 alur dari thread mengambil task yaitu:
 1. thread akan check packet apa yang `ready` untuk di eksekusi menggunakan `ready-bitmap`.
 2. di saat bertemu packet, maka thread akan langsung mengambil satu task menggunakan tail serta operasi `fetch_add` atomic untuk menghindari konflik.
-4. di saat ada task yang telah mencapai ujung list. maka task tersebut akan langsung mereset bit pada ready-bitma pada lokasi packet.
+4. di saat ada task yang telah mencapai ujung list. maka task tersebut akan langsung mereset bit pada `ready-bitmap` pada lokasi packet.
 5. di saat ada satu thread yang telah melewati ujung dari list(ujung list disini adalah kapasitas maksimal list, bukan head). maka thread tersebut akan mencari packet selanjutnya melalui `ready-bitmap` kembali.
 
 ## pencarian packet akan terus maju(next-fit)
@@ -21,7 +21,7 @@ alur bagaimana thread mencari telah digambarkan di atas, pencarian menggunakan o
 di saat tidak apa packet lagi, maka thread akan kembali pada pososi awal.
 
 ## operasi atomic
-untuk menghindari konflik, `cahotic` menggunakan operiasi penjumlahan atomic berdasarkan dari tail, langsung mendapatkan sinkronisasi tingkat cpu dan setiap thread akan langsung mendapatkan posisi mereka karena index sendiri hanya ada satu dan unik.
+untuk menghindari konflik, `cahotic` menggunakan operiasi penjumlahan atomic berdasarkan dari tail. langsung mendapatkan posisi mereka karena index sendiri hanya ada satu dan unik.
 
 <img width="400" src="./../img/atomic_add.png">
     

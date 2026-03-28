@@ -50,7 +50,7 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn scheduling_create_task(&self, task: F) -> Schedule<F, FS, O> {
+    pub fn scheduling_create_initial(&self, task: F) -> Schedule<F, FS, O> {
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
         Schedule {
             task: ScheduleTask::Task(task),

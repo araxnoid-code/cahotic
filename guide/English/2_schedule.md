@@ -1,5 +1,5 @@
 # Scheduling
-`schedule` berfungsi menjadwalkan sebuah task dan cara bagaimana cara task saling berkomunikasi.
+`schedule` functions to schedule a task and how tasks communicate with each other.
 ``` rust
 use std::{thread::sleep, time::Duration};
 
@@ -39,7 +39,7 @@ fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
 
     // Scheduling 
-    let mut poll1 = cahotic.scheduling_create_task(MyTask::Task(|| {
+    let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
         sleep(Duration::from_millis(1000));
         println!("task 1 done");
         MyOutput::None
@@ -61,9 +61,9 @@ fn main() {
 }
 ```
 
-penjelasan:
+explanation:
 ```rust
-let mut poll1 = cahotic.scheduling_create_task(MyTask::Task(|| {
+let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
     sleep(Duration::from_millis(1000));
     println!("task 1 done");
     MyOutput::None
@@ -74,36 +74,36 @@ let mut poll2 = cahotic.scheduling_create_schedule(MyTask::Schedule(|_| {
     MyOutput::None
 }));
 ```
-disini menggunakan 2 method antara lain:
-`Cahotic::scheduling_create_task(&self, F)`
-dan
+Here we use 2 methods, including:
+`Cahotic::scheduling_create_initial(&self, F)`
+and
 `Cahotic::scheduling_create_schedule(&self, FS)`
 ```
 note:
 - F: Type that implements TaskTrait (for regular tasks)
 - FS: Type that implements SchedulerTrait (for scheduled tasks with dependencies)
 ```
-untuk memahami ini, sebaiknya kita memahami bagaimana konsep Scheduling pada `cahotic`.
+To understand this, we should understand how the Scheduling concept works in `cahotic`.
 
-## `cahotic` menggunakan konsep `DAG (Directional Acyclic Graph)`
+## `cahotic` uses the concept of `DAG (Directional Acyclic Graph)`
 
 <img width="400" src="./../img/DAG.png"/>
 
-bisa dilihat gambar diatas, ada node berwarna biru dan merah. node berwarna biru adalah node yang menjadi awal dan node yang berwarna merah adalah node yang telah di jadwalkan dengan node biru atau node merah. berdasarkan node merah dan biru, maka:
-`Cahotic::scheduling_create_task(&self, F)`
-berguna untuk membuat awalan dari graph yang tidak dapat di jadwalkan.
+As can be seen in the image above, there are blue and red nodes. The blue node is the starting node, and the red node is the node that has been scheduled with the blue node or the red node. Based on the red and blue nodes, then:
+`Cahotic::scheduling_create_initial(&self, F)`
+useful for creating a initial schedule of an unschedulable graph.
 `Cahotic::scheduling_create_schedule(&self, FS)`
-berguna untuk membuat schedule yang dapat di jadwalkan oleh task(node biru) atau schedule lainnya(node merah).
+useful for creating a normal schedule that can be scheduled by the initial schedule or normal schedule (red node).
 
-oleh karena itu aturan pertama dari scheduling pada `cahotic`: 
-*setiap task yang menjadi awalan(node biru) tidak dapat memiliki dependensi (hanya bisa menjadi dependensi schedule lain).*
+therefore the first rule of scheduling on `cahotic`:
+*every initial schedule (blue node) cannot have dependencies (it can only be a dependency of another schedule).*
 
-setiap relasi yang tercipta pada task harus mengikuti konsep `DAG`, yaitu tidak boleh adanya siklus di dalam graf tersebut.
+Every relation created in a task must follow the `DAG` concept, namely there must be no cycles in the graph.
 ```rust
 fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
 
-    let mut poll1 = cahotic.scheduling_create_task(MyTask::Task(|| {
+    let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
         sleep(Duration::from_millis(1000));
         println!("task 1 done");
         MyOutput::None
@@ -121,7 +121,7 @@ fn main() {
         MyOutput::None
     }));
 
-    // terjadi siklus disini, menyebabkan task ini `cahotic` tersangkut
+    // a cycle occurs here, causing this task `cahotic` to get stuck
     cahotic.schedule_after(&mut poll3, &mut poll2).unwrap();
     cahotic.schedule_after(&mut poll2, &mut poll3).unwrap();
 
@@ -134,19 +134,19 @@ fn main() {
     cahotic.join();
 }
 ```
-bisa dilihat pada baris ini
+can be seen in this line
 ```rust
 cahotic.schedule_after(&mut poll3, &mut poll2).unwrap();
 cahotic.schedule_after(&mut poll2, &mut poll3).unwrap();
 ```
-terjadinya siklus disini, menyebabkan task ini akan tersangkut pada `cahotic`.
+The occurrence of a cycle here causes this task to get stuck in `cahotic`.
 
 <img width="400" src="./../img/ERROR_DAG.png">
     
-oleh karena itu aturan kedua dari scheduling pada `cahotic`: 
-*tidak boleh ada 2 schedule atau lebih yang saling menjadwalkan(membentuk siklus).*
+hence the second rule of scheduling on `cahotic`:
+*There cannot be 2 or more schedules that schedule each other (form a cycle).*
 
-pada code di bawah ini
+in the code below
 ```rust
 cahotic.schedule_exec(poll3);
 cahotic.schedule_exec(poll2);
@@ -156,23 +156,17 @@ cahotic.submit_packet();
 
 cahotic.join();
 ```
-semua task yang menjadi awalan dan schedule telah di buat, maka harus eksekusi melalui method `Cahotic::schedule_exec(&self, Schedule)` yang akan mereturn `PollWaiting`. secara teknis, yang terjadi saat melakukan penjadwalan adalah keseluruhan schedule akan mengupdate `cahotic` berdasarkan penjadwalan yang telah di tetapkan, jika ada 3 schedule namun hanya di eksekusi 2. maka schedule yang tidak di eksekusi menyebabkan schedule tersebut bisa tersangkut di `cahotic` dan bahkan lebih buruk yaitu mekanisme pembersihan `cahotic` yang tersangkut.
+All initial schedules and normal schedules that have been created must be executed via the method `Cahotic::schedule_exec(&self, Schedule)` which will return `Pool Waiting`. Technically, what happens when scheduling is that the entire schedule will update the `cahotic` based on the schedule that has been set, if there are 3 schedules but only 2 are executed. then the schedule that is not executed causes the schedule to get stuck in `cahotic` and even worse, the `cahotic` cleanup mechanism gets stuck.
 
-namun jika ada 3 schedule yang dibuat, namun tidak ada satupun yang di eksekusi? itu masihlah menjadi masalah karena pada method ini
+But if there are 3 schedules created, but none of them are executed? That's still a problem because in this method
 `Cahotic::scheduling_create_schedule(&self, FS)`
-langsung mengalokasikan space di dalam `cahotic`, jika tidak ada satupun schedule yang di eksekusi maka tidak ada satupun schedule yang menangani handler untuk mengalokasikan kembali space yang telah di tempati ini, dengan kata lain schedule akan tersangkut.
+directly allocate space in `cahotic`, if no schedule is executed then no schedule handles the handler to reallocate the occupied space, in other words the schedule will be stuck.
 
-oleh karena itu aturan ketiga dari scheduling pada `cahotic`: 
-*Semua Schedule yang telah dibuat haruslah di eksekusi*
-
-dari ketiga aturan itu:
-1. *setiap task yang menjadi awalan(node biru) tidak dapat memiliki dependensi (hanya bisa menjadi dependensi schedule lain).*
-2. *tidak boleh ada 2 schedule atau lebih yang saling menjadwalkan(membentuk siklus).*
-3. *Semua Schedule yang telah dibuat haruslah di eksekusi.*
-jika tidak diikuti maka akan menyebabkan kasus-kasus yang masih belum dapat di handle oleh cahotic. kerena itu diminta untuk berhati-hati.
+therefore the third rule of scheduling is `cahotic`: 
+*All schedules that have been created must be executed.*
 
 ## Communication Between Schedules
-mari kita melihat baris ini:
+let's look at this line:
 ```rust
 impl SchedulerTrait<MyOutput> for MyTask {
     fn execute(&self, scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput {
@@ -183,26 +177,26 @@ impl SchedulerTrait<MyOutput> for MyTask {
     }
 }
 ```
-terdapat struct `ScheduleVec<MyOutput>`, ini akan menampung semua valu yang di return oleh schedule yang dipergantungkan.
+there is a struct `ScheduleVec<MyOutput>`, This will accommodate all values returned by the dependent schedule.
 ```rust
 fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
 
-    let mut poll1 = cahotic.scheduling_create_task(MyTask::Task(|| {
+    let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
         sleep(Duration::from_millis(1000));
         println!("task 1 done");
         MyOutput::Result(10)
     }));
 
-    let mut poll2 = cahotic.scheduling_create_task(MyTask::Task(|| {
+    let mut poll2 = cahotic.scheduling_create_initial(MyTask::Task(|| {
         sleep(Duration::from_millis(500));
         println!("task 2 done");
         MyOutput::Result(20)
     }));
 
-    // untuk poll3 dapat mengakses value poll1 dan value poll2. poll3 harus ketergantungan terlebih dahulu dengan poll1 dan poll2
+    // for poll3 to access the value of poll1 and the value of poll2. poll3 must first depend on poll1 and poll2
     let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
-        // dalam mengakses index, bersarkan dari urutan penjadwalan dengan poll1 dan poll2
+        // in accessing the index, based on the scheduling order with poll1 and poll2
         let value_1 = schedule_vec.get(0);
         let value_2 = schedule_vec.get(1);
         println!(
@@ -212,7 +206,7 @@ fn main() {
         MyOutput::None
     }));
 
-    // urutan penjadwalan akan mempengaruhi index mengakses poll1 dan poll2 oleh poll3 
+    // scheduling order will affect the index accessing poll1 and poll2 by poll3
     cahotic.schedule_after(&mut poll3, &mut poll1).unwrap(); // index 0
     cahotic.schedule_after(&mut poll3, &mut poll2).unwrap(); // index 1
 
@@ -227,9 +221,9 @@ fn main() {
 ```
 pada bagian baris ini
 ```rust
-// untuk poll3 dapat mengakses value poll1 dan value poll2. poll3 harus ketergantungan terlebih dahulu dengan poll1 dan poll2
+// for poll3 to access the value of poll1 and the value of poll2. poll3 must first depend on poll1 and poll2
 let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
-    // dalam mengakses index, bersarkan dari urutan penjadwalan dengan poll1 dan poll2
+    // in accessing the index, based on the scheduling order with poll1 and poll2
     let value_1 = schedule_vec.get(0);
     let value_2 = schedule_vec.get(1);
     println!(
@@ -239,36 +233,36 @@ let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_ve
     MyOutput::None
 }));
 
-// urutan penjadwalan akan mempengaruhi index mengakses poll1 dan poll2 oleh poll3 
+// scheduling order will affect the index accessing poll1 and poll2 by poll3
 cahotic.schedule_after(&mut poll3, &mut poll1).unwrap(); // index 0
 cahotic.schedule_after(&mut poll3, &mut poll2).unwrap(); // index 1
 ```
-diperlukannya penentuan struktur secara eksplisit, ini adalah aturan ke-4 dari scheduling:
-*untuk mengakses value return dari value schedule yang menjadi dependensi, harus sesuai dengan urutan penjadwalannya*
+the need for explicit determination of structure, this is the 4th rule of scheduling:
+*To access the return value from the value schedule that is a dependency, it must be in accordance with the scheduling sequence.*
 
-sebagai tambahan, pada baris ini:
+additionally, on this line:
 ```rust
 cahotic.schedule_exec(poll3);
 cahotic.schedule_exec(poll2);
 cahotic.schedule_exec(poll1);
 ```
-urutan eksekusi sebenarnya tidak masalah untuk acak, namun jika berurutan yang mana schedule paling dalam di dahulukan dan schedule paling awal diakhir(berdasarkan graf yang terbentuk), maka akan lebih optimal karena tidak ada error handling saat shcedule telah selesai namun schedule yang ketergantungannya dengannya masih belum masuk ke dalam thread pool.
+The execution order does not actually matter for random, but if it is sequential, where the deepest scheduling is executed first to the top (based on the graph formed), then it will be more optimal because there is no error handling when the schedule has finished but the schedule that depends on it has not yet entered the thread pool.
 
-ini akan menjadi aturan ke-5, bukan untuk menghindari error. namun untuk optimalisasi
-*dalam eksekusi schedule, schedule paling dalam di dahulukan dan schedule paling awal diakhirkan(berdasarkan graf yang terbentuk), maka akan lebih optimal*
+This will be the 5th rule, not to avoid errors, but for optimization.
+*In scheduling execution, the deepest scheduling is executed first to the top (based on the graph formed), so it will be more optimal.*
 
 ## limitations due to design and capacity
-`cahotic` akan mengalokasikan space untuk schedule normal, dikarenakan desain system dan batas penyimpanan yang hanya dapat menampung 64 schedule. maka di saat ada lebih dari 63 schedule di spawn pada satu waktu, maka `cahotic` akan tersangkut.
+`cahotic` will allocate space for normal schedules, due to the system design and storage limit of 64 schedules. Therefore, when more than 64 schedules are spawned at a time, `cahotic` will get stuck.
 
-maka ini menjadi aturan ke-6.
-*jangan membuat lebih dari 64 schedule dalam satu waktu*
+then this becomes the 6th rule.
+*do not create more than 64 schedules at one time*
 
-eksekusi schedule pada cahotic tergantung pada counter yang dimiliki oleh schedule-schedule yang dipergantungkan. oleh karena itu jika membuat schedule normal tanpa adanya ketergantungan teruta pada schedule awalan, maka shcedule tersebut akan tersangkut.
+If there is a normal schedule that is executed without any dependencies, then the schedule can still be executed but there is a cost to handle it, it is better to use the initial schedule.
 ```rust
 fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
 
-    // poll masih akan dieksekusi namun memiliki cost untuk penanganannya, gunakan schedule awalan.
+    // poll will still be executed but has a cost for handling, use prefix schedule.
     let poll = cahotic.scheduling_create_schedule(MyTask::Schedule(|_| {
         println!("task done");
         MyOutput::None
@@ -280,17 +274,18 @@ fn main() {
     cahotic.join();
 }
 ```
-oleh karena itu, ini menjadi aturan ke-7 dan ke-8
-7. *setiap scheduling haruslah diawali dengan schedule awalan*
-8. *hindari membuat shcedule normal yang dibuat tanpa ketergantungan*
+therefore, this becomes the 7th and 8th rule
+7. *every scheduling must begin with an initial schedule*
+8. *avoid creating a normal schedule that is created without dependencies*
 
-## 8 Aturan, cukup banyak? aku setuju
-maka dalam Scheduling pada `cahotic` terdapat total 5 aturan, diantaranya:
-1. *setiap task yang menjadi awalan(node biru) tidak dapat memiliki dependensi (hanya bisa menjadi dependensi schedule lain).*
-2. *tidak boleh ada 2 schedule atau lebih yang saling menjadwalkan(membentuk siklus).*
-3. *Semua Schedule yang telah dibuat haruslah di eksekusi.*
-4. *untuk mengakses value return dari value yang menjadi dependensi, harus sesuai dengan urutan penjadwalannya*
-5. *dalam eksekusi schedule, schedule paling dalam di dahulukan dan schedule paling awal diakhirkan(berdasarkan graf yang terbentuk), maka akan lebih optimal*
-6. *jangan membuat lebih dari 64 schedule dalam satu waktu*
-7. *setiap scheduling haruslah diawali dengan schedule awalan*
-8. *hindari membuat shcedule normal yang dibuat tanpa ketergantungan*
+## 8 Rules, enough? I agree
+So in Scheduling on `cahotic` there are a total of 8 rules, including:
+1. *every initial schedule (blue node) cannot have dependencies (it can only be a dependency of another schedule).*
+2. *There cannot be 2 or more schedules that schedule each other (form a cycle).*
+3. *All schedules that have been created must be executed.*
+4. *To access the return value from the value schedule that is a dependency, it must be in accordance with the scheduling sequence.*
+5. *In scheduling execution, the deepest scheduling is executed first to the top (based on the graph formed), so it will be more optimal.*
+6. *do not create more than 64 schedules at one time*
+7. *every scheduling must begin with an initial schedule*
+8. *avoid creating a normal schedule that is created without dependencies*
+If not followed, it will result in cases that cannot yet be handled by cahotic. Therefore, caution is requested.

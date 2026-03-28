@@ -1,28 +1,28 @@
 # Task Execution
-pada packet terdapat `task_list`, `tail` dan `head`. untuk eksekusi task, para thread hanya memerlukan `task_list` dan `tail`.
+In the packet there is a `task_list`, `tail` and `head`. To execute a task, the threads only need `task_list` and `tail`.
 ```
 note:
-pada task juga memiliki head, namun head berfungsi untuk drop dan packet-core.
+The task also has a head, but the head functions for drop and packet-core.
 ```
 
 <img width="400" src="./../img/task_list_packet.png">
     
-alur dari thread mengambil task yaitu:
-1. thread akan check packet apa yang `ready` untuk di eksekusi menggunakan `ready-bitmap`.
-2. di saat bertemu packet, maka thread akan langsung mengambil satu task menggunakan tail serta operasi `fetch_add` atomic untuk menghindari konflik.
-4. di saat ada task yang telah mencapai ujung list. maka task tersebut akan langsung mereset bit pada ready-bitma pada lokasi packet.
-5. di saat ada satu thread yang telah melewati ujung dari list(ujung list disini adalah kapasitas maksimal list, bukan head). maka thread tersebut akan mencari packet selanjutnya melalui `ready-bitmap` kembali.
+The flow of the thread taking the task is:
+1. The thread will check which packets are `ready` to be executed using `ready-bitmap`.
+2. When a packet is encountered, the thread will immediately take one task using tail and the atomic `fetch_add` operation to avoid conflicts.
+4. When a task reaches the end of the list, it immediately resets the `ready-bitmap` at the packet location.
+5. When a thread has passed the end of the list (the end of the list here refers to the maximum capacity of the list, not the head), the thread will search for the next packet through the `ready-bitmap` again.
 
-## pencarian packet akan terus maju(next-fit)
-cara thread mencari tidak dari satu titik yang sama setiap saat. ini akan meningkatkan tabrakan karena banyak thread juga mencari di tempat yang sama pula serta task task pada packet ujung akan lama dieksekusi karena packet `packet-core` akan berfokus pada pencarian cepat. oleh karena itu thread mengimplementasi konsep next-fit yang mana thread akan mencari pada posisi terakhir kali dia mendapatkan packet.
+## packet search will continue to progress (next-fit)
+Threads do not search from the same point each time. This increases collisions because many threads are searching in the same place, and tasks at the end of the packet will take a long time to execute because the packet-core packet will focus on fast searches. Therefore, the thread implements the next-fit concept where the thread will search at the position where it last received the packet.
 
 <img width="400" src="./../img/next-fit-thread.png">
-alur bagaimana thread mencari telah digambarkan di atas, pencarian menggunakan operasi bit secara langsung jadi tidak ada pencarian linear yang terjadi.
-di saat tidak apa packet lagi, maka thread akan kembali pada pososi awal.
+The thread's search flow is described above. Searching uses direct bit operations, so there's no linear search.
+When there are no more packets, the thread returns to its initial position.
 
-## operasi atomic
-untuk menghindari konflik, `cahotic` menggunakan operiasi penjumlahan atomic berdasarkan dari tail, langsung mendapatkan sinkronisasi tingkat cpu dan setiap thread akan langsung mendapatkan posisi mereka karena index sendiri hanya ada satu dan unik.
+## atomic operations
+To avoid conflicts, `cahotic` uses an atomic addition operation based on the tail. They immediately get their positions because the index itself is unique and only one.
 
 <img width="400" src="./../img/atomic_add.png">
     
-bisa di lihat diatas, jika banyak thread yang menjumlahkan tail secara atomic maka akan berlaku siapa cepat ia dapat dan mengakibatkan tidak berurutan, namun itu tidaklah menjadi masalah karena eksekusi task secepat mungkin adalah inti dari `cahotic`.
+As can be seen above, if many threads are adding tails atomically, it will be a first come, first served basis and will result in non-sequential execution, but that is not a problem because executing tasks as quickly as possible is the essence of `cahotic`.

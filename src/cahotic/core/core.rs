@@ -48,7 +48,7 @@ where
     }
 
     pub fn scheduling_create_task(&self, task: F) -> Schedule<F, FS, O> {
-        self.task_core.packet_core.scheduling_create_task(task)
+        self.task_core.packet_core.scheduling_create_initial(task)
     }
 
     pub fn scheduling_create_schedule(&self, schedule: FS) -> Schedule<F, FS, O> {

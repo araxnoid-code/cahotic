@@ -33,41 +33,24 @@ impl SchedulerTrait<MyOutput> for MyTask {
 }
 
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
 
-    let mut poll1 = cahotic.scheduling_create_schedule(MyTask::Schedule(|_| {
-        sleep(Duration::from_millis(1000));
-        println!("task 1 done");
-        MyOutput::Result(10)
-    }));
+    // let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 16, 32>::init();
 
-    let mut poll2 = cahotic.scheduling_create_task(MyTask::Task(|| {
-        sleep(Duration::from_millis(500));
-        println!("task 2 done");
-        MyOutput::Result(20)
-    }));
+    // for i in 0..100 {
+    //     cahotic.spawn_task(MyTask::Task(|| {
+    // fib_recursive(42);
+    //         MyOutput::None
+    //     }));
+    // }
+    // cahotic.submit_packet();
 
-    // untuk poll3 dapat mengakses value poll1 dan value poll2. poll3 harus ketergantungan terlebih dahulu dengan poll1 dan poll2
-    let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
-        // dalam mengakses index, bersarkan dari urutan penjadwalan dengan poll1 dan poll2
-        let value_1 = schedule_vec.get(0);
-        let value_2 = schedule_vec.get(1);
-        println!(
-            "task 3 done, value1: {:?} and value: {:?}",
-            value_1, value_2
-        );
-        MyOutput::None
-    }));
+    // cahotic.join();
+}
 
-    // urutan penjadwalan akan mempengaruhi index mengakses poll1 dan poll2 oleh poll3
-    cahotic.schedule_after(&mut poll3, &mut poll1).unwrap(); // index 0
-    cahotic.schedule_after(&mut poll3, &mut poll2).unwrap(); // index 1
-
-    cahotic.schedule_exec(poll3);
-    cahotic.schedule_exec(poll2);
-    cahotic.schedule_exec(poll1);
-
-    cahotic.submit_packet();
-
-    cahotic.join();
+fn fib_recursive(n: u64) -> u64 {
+    match n {
+        0 => 0,
+        1 => 1,
+        _ => fib_recursive(n - 1) + fib_recursive(n - 2),
+    }
 }

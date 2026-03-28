@@ -1,14 +1,14 @@
 # Drop
-pembersihan data task pada `cahotic` dilakukan secara serentak berdasarkan packet yang ia tempati. untuk memungkinkan drop, packet memiliki beberapa kompunent penting
-1. `drop_list`, tempat dimana semua data task yang akan di drop.
-2. `head`, sebagai batasan drop.
-3. `done_counter`, untuk menjamin semua task selesai sebelum dihapus. ini penting terutama untuk scheduling.
+Task data cleaning on `cahotic` is done simultaneously based on the packet it occupies. To enable dropping, packets have several important components
+1. `drop_list`, the place where all task data will be dropped.
+2. `head`, as a drop limit.
+3. `done_counter`, to ensure all tasks are completed before being deleted. This is especially important for scheduling..
 
 <img width="400" src="./../img/drop_bitmap_graf.png">
 
-secara singkat dapat dijelaskan seperti ini:
-1. sebelum packet di submit, setiap task yang masuk akan diubah menjadi `WaitingTask` dan menambahkan `done_counter` pada packet yang menampungnya, `WaitingTask` menampung informasi-informasi yang dibituhkan, salah satunya adalah index dari packet yang `WaitingTask` itu tempati.
-2. di saat `WaitingTask` selesai maka thread yang mengeksekusi `WaitingTask` akan langsung mengurangi `done_counter` dari packet yang telah diambil task di dalamnya.
-3. saat `done_counter` menjadi 0, maka thread tersebut akan mengubah `drop-bitmap`, `drop-bitmap` sama dengan bitmap lainnya dengan fungsi khsusus yaitu untuk menandakan packet apa saja yang siap di drop.
-4. drop-bitmap akan di check secara berkala secara cepat karena dalam bentuk bitmap, di saat ada packet yang bisa di drop melalui drop-bitmap, thread yang dapat duluan akan mengambilnya dan mulai melakukan drop pada packet tersebut.
-5. di saat drop telah selesai, maka empty-bitmap akan di update sesuai dengan index packet telah di drop yang siap digunakan kembali menampung task yang baru.
+briefly it can be explained like this:
+1. Before the packet is submitted, each incoming task will be converted into a `WaitingTask` and add a `done_counter` to the packet that contains it. The `WaitingTask` contains the required information, one of which is the index of the packet that the `WaitingTask` occupies.
+2. When the `WaitingTask` is finished, the thread executing the `WaitingTask` will immediately reduce the `done_counter` from the packets that the task has taken in it.
+3. When `done_counter` becomes 0, the thread will change the `drop-bitmap`, `drop-bitmap` is the same as other bitmaps with a special function, namely to indicate which packets are ready to be dropped.
+4. The `drop-bitmap` will be checked periodically quickly because it is in bitmap form, when there is a packet that can be dropped via the `drop-bitmap`, the thread that can first will take it and start dropping the packet.
+5. When the drop is complete, the `empty-bitmap` will be updated according to the dropped packet index which is ready to be reused to accommodate new tasks.
