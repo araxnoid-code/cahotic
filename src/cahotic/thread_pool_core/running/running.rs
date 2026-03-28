@@ -49,7 +49,7 @@ where
                 continue;
             }
 
-            if let Some(task) = packet.task[tail].take() {
+            if let Some(task) = packet.task_list[tail].take() {
                 match task.task {
                     ExecTask::Task(f) => {
                         let output = Box::into_raw(Box::new(f.execute()));
@@ -78,9 +78,7 @@ where
                                 .fetch_or(1 << packet_idx, Ordering::Release);
                         }
                     }
-                    ExecTask::Scheduling(_, _, _, _) => {
-                        // self.scheduling_queue.push_back(task);
-                    }
+                    // ExecTask::Scheduling(_, _, _, _) => {}
                     _ => panic!(),
                 };
             }

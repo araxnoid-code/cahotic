@@ -15,8 +15,8 @@ where
     // id
     pub(crate) _id: usize,
     //
-    pub(crate) task: [Option<WaitingTask<F, FS, O>>; PN],
-    pub(crate) drop: [Option<(
+    pub(crate) task_list: [Option<WaitingTask<F, FS, O>>; PN],
+    pub(crate) drop_list: [Option<(
         &'static AtomicPtr<O>,
         Option<&'static AtomicUsize>,
         Option<&'static AtomicUsize>,
@@ -38,8 +38,8 @@ where
 
         Self {
             _id: id,
-            task,
-            drop,
+            task_list: task,
+            drop_list: drop,
             head: AtomicUsize::new(0),
             tail: AtomicUsize::new(0),
             done_counter: Box::leak(Box::new(AtomicUsize::new(0))),

@@ -27,15 +27,4 @@ impl<O> PollWaiting<O> {
             None
         }
     }
-
-    pub fn collect(&self) -> &O {
-        unsafe {
-            while self.data_ptr.load(Ordering::Acquire).is_null() {
-                spin_loop();
-            }
-
-            let data = self.data_ptr.load(Ordering::Acquire);
-            &*data
-        }
-    }
 }

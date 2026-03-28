@@ -50,7 +50,9 @@ where
             if bitmap != 0 {
                 let packet = &mut self.list_core.load_packet_list()[drop_idx];
                 for i in 0..packet.head.load(Ordering::Acquire) {
-                    if let Some((return_ptr, candidate_ptr, poll_counter)) = packet.drop[i].take() {
+                    if let Some((return_ptr, candidate_ptr, poll_counter)) =
+                        packet.drop_list[i].take()
+                    {
                         unsafe {
                             drop(Box::from_raw(
                                 return_ptr.swap(null_mut(), Ordering::Release),

@@ -152,7 +152,7 @@ where
                         poll_child: schedule.poll_child,
                     };
 
-                    packet.task[idx] = Some(waiting_task);
+                    packet.task_list[idx] = Some(waiting_task);
                 } else if let (
                     ScheduleTask::Schedule(task, allocated_idx),
                     Some(schedule_vec),
@@ -162,6 +162,7 @@ where
                     schedule.shcedule_vec,
                     schedule.candidate_packet_vec,
                 ) {
+                    let execute_directly = schedule_vec.len() == 0;
                     let waiting_task = WaitingTask {
                         _id: id_counter,
                         task: ExecTask::<F, FS, O>::Scheduling(
@@ -176,11 +177,16 @@ where
 
                     *(&mut (*self.schedule_list.load(Ordering::Acquire))[allocated_idx as usize]
                         .schedule) = Some(waiting_task);
+
+                    if execute_directly == true {
+                        self.poll_schedule_bitmap
+                            .fetch_or(1_u64 << allocated_idx, Ordering::Release);
+                    }
                 } else {
                     panic!()
                 };
 
-                packet.drop[idx] = Some((
+                packet.drop_list[idx] = Some((
                     return_ptr,
                     Some(schedule.candidate_packet_idx),
                     schedule.poll_counter,
