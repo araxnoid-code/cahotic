@@ -11,10 +11,10 @@
 `cahotic`, thread pool management written in rust.
 
 ## Vesrion
-what's new with: [version/0.1.0](https://github.com/araxnoid-code/cahotic/blob/main/version.md)
+what's new with: [version/0.1.0](https://github.com/araxnoid-code/cahotic/blob/version/0.1.0/version.md)
 
 ## Guide 
-explanation of main features (English and Indonesian available): [guide.md](https://github.com/araxnoid-code/cahotic/blob/main/guide/guide.md)
+explanation of main features (English and Indonesian available): [guide.md](https://github.com/araxnoid-code/cahotic/blob/version/0.1.0/guide/guide.md)
 
 ## Starting
 ### Installation
