@@ -87,4 +87,4 @@ empty-bimtap: 110100
 ready-bimtap: 001011
 ```
 
-ada kasus khusus untuk `scheduling`, `schedule` yang menjadi awalan masih akan tetap tertampung ke dalam packet, namun schedule yang tidak menjadi awalan hanya akan ikut tertampung ke dalam packet juga, namun hanya sekedar untuk ikut dibersihkan. Secara teknis schedule akan masuk ke dalam `schedule-list`. kita akan bahas ini nanti.
+ada kasus khusus untuk `scheduling`, initial `schedule` masih akan tetap tertampung ke dalam packet, namun normal schedule akan dinaggap ikut tertampung ke dalam packet, namun hanya sekedar untuk ikut dibersihkan. Secara teknis schedule akan masuk ke dalam `schedule-list`. kita akan bahas ini nanti.

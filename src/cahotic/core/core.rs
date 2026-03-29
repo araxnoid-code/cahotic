@@ -10,7 +10,7 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    // List Core
+    // task Core
     pub task_core: Arc<TaskCore<F, FS, O, PN>>,
 
     // thread pool Core

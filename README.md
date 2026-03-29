@@ -10,6 +10,12 @@
 ## About
 `cahotic`, thread pool management written in rust.
 
+## Vesrion
+what's new with: [version/0.1.0](./version.md)
+
+## Guide 
+explanation of main features (English and Indonesian available): [guide.md](./guide/guide.md)
+
 ## Starting
 ### Installation
 Run the following Cargo command in your project directory:
@@ -70,6 +76,3 @@ fn main() {
     cahotic.join();
 }
 ```
-
-## Guide 
-explanation of main features(English and Indonesian available): [guide.md](./guide/guide.md)
