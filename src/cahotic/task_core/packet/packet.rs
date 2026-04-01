@@ -24,6 +24,10 @@ where
     pub(crate) tail: AtomicUsize,
     pub(crate) head: AtomicUsize,
     pub(crate) done_counter: &'static AtomicUsize,
+
+    // update
+    pub(crate) task: Option<WaitingTask<F, FS, O>>,
+    // update
 }
 
 impl<F, FS, O, const PN: usize> Packet<F, FS, O, PN>
@@ -43,6 +47,10 @@ where
             head: AtomicUsize::new(0),
             tail: AtomicUsize::new(0),
             done_counter: Box::leak(Box::new(AtomicUsize::new(0))),
+
+            // update
+            task: None,
+            // update
         }
     }
 }

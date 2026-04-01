@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    ExecTask, OutputTrait, Packet, PollWaiting, ScheduleSlot, SchedulerTrait, TaskTrait,
-    WaitingTask,
+    ExecTask, Level1, Level2, OutputTrait, Packet, PollWaiting, ScheduleSlot, SchedulerTrait,
+    TaskTrait, WaitingTask,
 };
 
 pub struct PacketCore<F, FS, O, const PN: usize>
@@ -31,6 +31,15 @@ where
     pub poll_schedule_bitmap: AtomicU64,
     //
     pub use_packet: AtomicU32,
+    //
+    // level
+    pub packets: AtomicPtr<[Packet<F, FS, O, PN>; 4096]>,
+    pub pro_level2_bitmap: Level2,
+    pub pro_level1_bitmap: [Level1; 64],
+    pub con_level2_bitmap: Level2,
+    pub con_level1_bitmap: [Level1; 64],
+    pub l2_slot: AtomicU32,
+    pub before_mask: AtomicU32,
 }
 
 impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
@@ -56,6 +65,17 @@ where
             poll_schedule_bitmap: AtomicU64::new(0),
             //
             use_packet: AtomicU32::new(64),
+            //
+            // level
+            pro_level1_bitmap: array::from_fn(|_| Level1::init(u64::MAX)),
+            pro_level2_bitmap: Level2::init(u64::MAX),
+
+            con_level1_bitmap: array::from_fn(|_| Level1::init(u64::MAX)),
+            con_level2_bitmap: Level2::init(u64::MAX),
+
+            packets: AtomicPtr::new(Box::into_raw(Box::new(array::from_fn(|i| Packet::init(i))))),
+            l2_slot: AtomicU32::new(0),
+            before_mask: AtomicU32::new(0),
         }
     }
 

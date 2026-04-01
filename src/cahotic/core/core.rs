@@ -37,6 +37,10 @@ where
         self.task_core.spawn_task(f)
     }
 
+    pub fn _spawn_task(&self, f: F) -> PollWaiting<O> {
+        self.task_core._spawn_task(f)
+    }
+
     // packet
     pub fn submit_packet(&self) {
         self.task_core.submit_packet();
@@ -69,4 +73,7 @@ where
     pub fn join(self) {
         self.thread_pool_core.join();
     }
+
+    // update
+    // update
 }
