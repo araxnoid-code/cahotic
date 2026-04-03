@@ -1,6 +1,7 @@
 use std::{
     array,
-    sync::atomic::{AtomicPtr, AtomicUsize},
+    ops::Deref,
+    sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize},
 };
 
 use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
@@ -24,6 +25,30 @@ where
     pub(crate) tail: AtomicUsize,
     pub(crate) head: AtomicUsize,
     pub(crate) done_counter: &'static AtomicUsize,
+    // update
+    pub(crate) empty: PacketEmptyStatus,
+    pub(crate) task: Option<WaitingTask<F, FS, O>>,
+    // update
+}
+
+#[repr(align(64))]
+pub struct PacketEmptyStatus {
+    status: AtomicBool,
+}
+
+impl Default for PacketEmptyStatus {
+    fn default() -> Self {
+        Self {
+            status: AtomicBool::new(true),
+        }
+    }
+}
+
+impl Deref for PacketEmptyStatus {
+    type Target = AtomicBool;
+    fn deref(&self) -> &Self::Target {
+        &self.status
+    }
 }
 
 impl<F, FS, O, const PN: usize> Packet<F, FS, O, PN>
@@ -43,6 +68,8 @@ where
             head: AtomicUsize::new(0),
             tail: AtomicUsize::new(0),
             done_counter: Box::leak(Box::new(AtomicUsize::new(0))),
+            empty: PacketEmptyStatus::default(),
+            task: None,
         }
     }
 }

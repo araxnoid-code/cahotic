@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    ExecTask, OutputTrait, Packet, PollWaiting, ScheduleSlot, SchedulerTrait, TaskTrait,
-    WaitingTask,
+    ExecTask, HeadRingBuffer, OutputTrait, Packet, PollWaiting, ScheduleSlot, SchedulerTrait,
+    TailRingBuffer, TaskTrait, WaitingTask,
 };
 
 pub struct PacketCore<F, FS, O, const PN: usize>
@@ -31,6 +31,12 @@ where
     pub poll_schedule_bitmap: AtomicU64,
     //
     pub use_packet: AtomicU32,
+    //
+    // update
+    pub ring_buffer: AtomicPtr<[Packet<F, FS, O, PN>; 4096]>,
+    pub head: HeadRingBuffer,
+    pub tail: TailRingBuffer,
+    // update
 }
 
 impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
@@ -56,6 +62,13 @@ where
             poll_schedule_bitmap: AtomicU64::new(0),
             //
             use_packet: AtomicU32::new(64),
+            // update
+            ring_buffer: AtomicPtr::new(Box::into_raw(Box::new(array::from_fn(|i| {
+                Packet::init(i)
+            })))),
+            head: HeadRingBuffer::default(),
+            tail: TailRingBuffer::default(),
+            // update
         }
     }
 
