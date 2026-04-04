@@ -40,7 +40,7 @@ where
     // drop
     pub quota_bitmap: AtomicU64,
     pub use_quota: AtomicUsize,
-    pub drop_packet_quota: [&'static AtomicUsize; 64],
+    pub quota_list: [AtomicUsize; 64],
     // update
 }
 
@@ -76,9 +76,7 @@ where
             //
             use_quota: AtomicUsize::new(64),
             quota_bitmap: AtomicU64::new(u64::MAX),
-            drop_packet_quota: array::from_fn(|_| {
-                Box::leak(Box::new(AtomicUsize::new(64))) as &'static AtomicUsize
-            }),
+            quota_list: array::from_fn(|_| AtomicUsize::new(64)),
             // update
         }
     }

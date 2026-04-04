@@ -51,8 +51,8 @@ where
                         }
                     }
 
-                    self.done_task.fetch_add(1, Ordering::Release);
-
+                    self.task_core.packet_core.quota_list[drop_idx].store(64, Ordering::Relaxed);
+                    self.done_task.fetch_add(1, Ordering::Relaxed);
                     self.task_core
                         .packet_core
                         .quota_bitmap
@@ -103,15 +103,16 @@ where
                 }
 
                 // drop packet
-                let quota = task.drop_handler.unwrap();
-                let done_counter = quota.0.fetch_sub(1, Ordering::Relaxed);
+                let quota_idx = task.drop_handler.unwrap();
+                let done_counter = self.task_core.packet_core.quota_list[quota_idx]
+                    .fetch_sub(1, Ordering::Relaxed);
                 if done_counter != 1 {
                     self.done_task.fetch_add(1, Ordering::Relaxed);
                 } else {
                     self.task_core
                         .packet_core
                         .drop_bitmap
-                        .fetch_or(1_u64 << quota.1, Ordering::Release);
+                        .fetch_or(1_u64 << quota_idx, Ordering::Release);
                 }
             }
         }

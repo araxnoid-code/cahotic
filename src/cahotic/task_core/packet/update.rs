@@ -62,7 +62,7 @@ where
                 task: ExecTask::Task(task),
                 return_ptr: Some(return_ptr),
                 poll_child: vec![],
-                drop_handler: Some((self.drop_packet_quota[quota], quota)),
+                drop_handler: Some(quota),
             };
 
             packet.task = Some(waiting_task);
