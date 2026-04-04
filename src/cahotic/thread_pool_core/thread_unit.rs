@@ -36,4 +36,7 @@ where
     pub(crate) sch_counter: usize,
     pub(crate) use_sch_idx: usize,
     pub(crate) masking_sch_idx: usize,
+
+    // ring buffer
+    pub(crate) order: usize,
 }

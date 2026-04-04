@@ -34,16 +34,17 @@ impl SchedulerTrait<MyOutput> for MyTask {
 fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
 
-    for i in 0..4097 {
+    for i in 0..4096 {
         let poll = cahotic.spawn_task_update(MyTask::Task(|| {
-            sleep(Duration::from_millis(1000));
+            // sleep(Duration::from_millis(1000));
             println!("done!");
             MyOutput::None
         }));
     }
 
-    let head = cahotic.get_head();
-    println!("{}", head);
+    // sleep(Duration::from_millis(1000));
+    // let head = cahotic.get_head();
+    // println!("==============> head: {}", head);
 
     cahotic.join();
 }

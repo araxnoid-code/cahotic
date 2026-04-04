@@ -26,15 +26,11 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn load_head(&self, order: Ordering) -> usize {
-        self.head.load(order)
-    }
-
     pub fn enqueue(&self, task: F, id_counter: u64, in_task: &AtomicU64) -> PollWaiting<O> {
         unsafe {
             let head = self.head.fetch_add(1, Ordering::Release) & 4095;
 
-            let packet = &mut (&mut (*self.ring_buffer.load(Ordering::Relaxed)))[head];
+            let packet = &mut (&mut (*self.ring_buffer.load(Ordering::Relaxed)))[head as usize];
             while !packet.empty.load(Ordering::Acquire) {
                 spin_loop();
             }
@@ -61,25 +57,44 @@ where
         }
     }
 
+    pub fn check_order(&self, order: usize) -> DequeueStatus<F, FS, O> {
+        unsafe {
+            let packet = &mut (&mut (*self.ring_buffer.load(Ordering::Relaxed)))[order];
+
+            if packet.empty.load(Ordering::Acquire) {
+                return DequeueStatus::Waiting(order);
+            }
+
+            if let Some(task) = packet.task.take() {
+                packet.empty.store(true, Ordering::Release);
+                return DequeueStatus::Ok(task);
+            }
+
+            DequeueStatus::None
+        }
+    }
+
     pub fn dequeue(&self) -> DequeueStatus<F, FS, O> {
         unsafe {
             let tail = self.tail.fetch_add(1, Ordering::Relaxed) & 4095;
 
-            let packet = &mut (&mut (*self.ring_buffer.load(Ordering::Relaxed)))[tail];
-            while packet.empty.load(Ordering::Acquire) {
-                return DequeueStatus::Waiting(tail);
+            let packet = &mut (&mut (*self.ring_buffer.load(Ordering::Relaxed)))[tail as usize];
+            if packet.empty.load(Ordering::Acquire) {
+                return DequeueStatus::Waiting(tail as usize);
             }
 
             if let Some(task) = packet.task.take() {
+                packet.empty.store(true, Ordering::Release);
                 return DequeueStatus::Ok(task);
             }
 
-            packet.empty.store(true, Ordering::Release);
-
-            return DequeueStatus::None;
+            DequeueStatus::None
         }
     }
 }
+//
+//
+
 //
 //
 impl<F, FD, O, const PN: usize> TaskCore<F, FD, O, PN>
@@ -108,11 +123,11 @@ where
         self.task_core.spawn_task_update(task)
     }
 
-    pub fn get_head(&self) -> usize {
+    pub fn get_head(&self) -> u64 {
         self.task_core.packet_core.head.load(Ordering::Acquire)
     }
 
-    pub fn get_tail(&self) -> usize {
+    pub fn get_tail(&self) -> u64 {
         self.task_core.packet_core.tail.load(Ordering::Acquire)
     }
 }

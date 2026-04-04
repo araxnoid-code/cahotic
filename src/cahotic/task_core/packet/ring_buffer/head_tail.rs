@@ -1,21 +1,21 @@
-use std::{ops::Deref, sync::atomic::AtomicUsize};
+use std::{ops::Deref, sync::atomic::AtomicU64};
 
 // HEAD
 #[repr(align(64))]
 pub struct HeadRingBuffer {
-    index: AtomicUsize,
+    index: AtomicU64,
 }
 
 impl Default for HeadRingBuffer {
     fn default() -> Self {
         Self {
-            index: AtomicUsize::new(0),
+            index: AtomicU64::new(0),
         }
     }
 }
 
 impl Deref for HeadRingBuffer {
-    type Target = AtomicUsize;
+    type Target = AtomicU64;
     fn deref(&self) -> &Self::Target {
         &self.index
     }
@@ -24,11 +24,11 @@ impl Deref for HeadRingBuffer {
 // TAIL
 #[repr(align(64))]
 pub struct TailRingBuffer {
-    index: AtomicUsize,
+    index: AtomicU64,
 }
 
 impl Deref for TailRingBuffer {
-    type Target = AtomicUsize;
+    type Target = AtomicU64;
     fn deref(&self) -> &Self::Target {
         &self.index
     }
@@ -37,7 +37,7 @@ impl Deref for TailRingBuffer {
 impl Default for TailRingBuffer {
     fn default() -> Self {
         Self {
-            index: AtomicUsize::new(0),
+            index: AtomicU64::new(0),
         }
     }
 }

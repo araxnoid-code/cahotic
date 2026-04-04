@@ -65,6 +65,7 @@ where
                     sch_counter: 0,
                     masking_sch_idx: 64,
                     use_sch_idx: 64,
+                    order: 4096,
                 };
 
                 while !block_clone.load(Ordering::Acquire) {
@@ -72,7 +73,7 @@ where
                 }
 
                 // running
-                thread_unit.running();
+                thread_unit.running_update();
             })
         });
 
