@@ -34,16 +34,23 @@ impl SchedulerTrait<MyOutput> for MyTask {
 fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
 
-    for i in 0..4096 {
+    for i in 0..256 {
         let poll = cahotic.spawn_task_update(MyTask::Task(|| {
-            // sleep(Duration::from_millis(1000));
-            println!("done!");
+            sleep(Duration::from_millis(100));
+            // println!("done!");
             MyOutput::None
         }));
     }
 
-    // sleep(Duration::from_millis(1000));
-    // let head = cahotic.get_head();
+    let bitmap = cahotic.get_quota_bitmap();
+    println!("{:064b}", bitmap);
+
+    sleep(Duration::from_millis(5000));
+    let bitmap = cahotic.get_quota_bitmap();
+    println!("{:064b}", bitmap);
+
+    // let bitmap = cahotic.get_quota_bitmap();
+    // println!("{:064}", bitmap);
     // println!("==============> head: {}", head);
 
     cahotic.join();

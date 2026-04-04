@@ -13,7 +13,7 @@ where
 {
     pub fn get_idx_drop(&mut self) {
         let mut bitmap = self
-            .list_core
+            .task_core
             .packet_core
             .drop_bitmap
             .load(Ordering::Acquire);
@@ -34,21 +34,21 @@ where
             return;
         }
         self.drop_counter = 0;
-        self.get_idx_drop();
 
+        self.get_idx_drop();
         let drop_idx = self.use_drop_idx;
         if drop_idx != 64 {
             self.break_counter = 0;
             let masking = 1_u64 << drop_idx;
             let mut bitmap = self
-                .list_core
+                .task_core
                 .packet_core
                 .drop_bitmap
                 .fetch_and(!masking, Ordering::Release);
             bitmap &= masking;
 
             if bitmap != 0 {
-                let packet = &mut self.list_core.load_packet_list()[drop_idx];
+                let packet = &mut self.task_core.load_packet_list()[drop_idx];
                 for i in 0..packet.head.load(Ordering::Acquire) {
                     if let Some((return_ptr, candidate_ptr, poll_counter)) =
                         packet.drop_list[i].take()
@@ -76,8 +76,8 @@ where
                     }
                 }
 
-                self.done_task.fetch_add(1, Ordering::Release);
-                self.list_core
+                self.done_task.fetch_add(1, Ordering::Relaxed);
+                self.task_core
                     .packet_core
                     .empty_bitmap
                     .fetch_or(1_u64 << drop_idx, Ordering::Release);

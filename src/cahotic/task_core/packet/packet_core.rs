@@ -26,6 +26,7 @@ where
     //
     pub empty_bitmap: AtomicU64,
     pub ready_bitmap: AtomicU64,
+    //
     pub drop_bitmap: AtomicU64,
     pub allo_schedule_bitmap: AtomicU64,
     pub poll_schedule_bitmap: AtomicU64,
@@ -36,6 +37,10 @@ where
     pub ring_buffer: AtomicPtr<Vec<Packet<F, FS, O, PN>>>,
     pub head: HeadRingBuffer,
     pub tail: TailRingBuffer,
+    // drop
+    pub quota_bitmap: AtomicU64,
+    pub use_quota: AtomicUsize,
+    pub drop_packet_quota: [&'static AtomicUsize; 64],
     // update
 }
 
@@ -68,6 +73,12 @@ where
             ))),
             head: HeadRingBuffer::default(),
             tail: TailRingBuffer::default(),
+            //
+            use_quota: AtomicUsize::new(64),
+            quota_bitmap: AtomicU64::new(u64::MAX),
+            drop_packet_quota: array::from_fn(|_| {
+                Box::leak(Box::new(AtomicUsize::new(64))) as &'static AtomicUsize
+            }),
             // update
         }
     }
@@ -134,6 +145,7 @@ where
 
                 // create waiting task
                 let waiting_task = WaitingTask {
+                    drop_handler: None,
                     _id: id_counter,
                     task: ExecTask::Task(task),
                     return_ptr: Some(return_ptr),

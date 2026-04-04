@@ -28,6 +28,7 @@ where
     // update
     pub(crate) empty: PacketEmptyStatus,
     pub(crate) task: Option<WaitingTask<F, FS, O>>,
+    pub(crate) drop: Option<&'static AtomicPtr<O>>,
     // update
 }
 
@@ -70,6 +71,7 @@ where
             done_counter: Box::leak(Box::new(AtomicUsize::new(0))),
             empty: PacketEmptyStatus::default(),
             task: None,
+            drop: None,
         }
     }
 }

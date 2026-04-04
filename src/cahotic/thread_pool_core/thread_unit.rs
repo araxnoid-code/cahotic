@@ -22,7 +22,7 @@ where
     pub(crate) done_task: Arc<AtomicU64>,
 
     // // list core
-    pub(crate) list_core: Arc<TaskCore<F, FS, O, PN>>,
+    pub(crate) task_core: Arc<TaskCore<F, FS, O, PN>>,
 
     // packet
     // // packet

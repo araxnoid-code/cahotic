@@ -10,7 +10,7 @@ where
 {
     pub fn get_idx_sch(&mut self) {
         let mut bitmap = self
-            .list_core
+            .task_core
             .packet_core
             .poll_schedule_bitmap
             .load(Ordering::Acquire);
@@ -37,7 +37,7 @@ where
             self.break_counter = 0;
             let masking = 1_u64 << sch_idx;
             let mut bitmap = self
-                .list_core
+                .task_core
                 .packet_core
                 .poll_schedule_bitmap
                 .fetch_and(!masking, Ordering::Release);
@@ -45,14 +45,14 @@ where
             if bitmap != 0 {
                 unsafe {
                     let schedule_slot = (*self
-                        .list_core
+                        .task_core
                         .packet_core
                         .schedule_list
                         .load(Ordering::Acquire))[sch_idx]
                         .schedule
                         .take();
 
-                    self.list_core
+                    self.task_core
                         .packet_core
                         .allo_schedule_bitmap
                         .fetch_or(masking, Ordering::Release);
@@ -79,18 +79,18 @@ where
                                     let counter = counter.fetch_sub(1, Ordering::Release);
                                     if counter == 1 {
                                         let masking = 1_u64 << schedule_idx;
-                                        self.list_core
+                                        self.task_core
                                             .packet_core
                                             .poll_schedule_bitmap
                                             .fetch_or(masking, Ordering::Release);
                                     }
                                 }
 
-                                let packet = &mut self.list_core.load_packet_list()[packet_idx];
+                                let packet = &mut self.task_core.load_packet_list()[packet_idx];
                                 let done_counter =
                                     packet.done_counter.fetch_sub(1, Ordering::Release);
                                 if done_counter == 1 {
-                                    self.list_core
+                                    self.task_core
                                         .packet_core
                                         .drop_bitmap
                                         .fetch_or(1_u64 << packet_idx, Ordering::Release);
@@ -99,11 +99,11 @@ where
                                 // clean schedule
                                 for idx in candidate_packet_idx {
                                     let idx = idx.load(Ordering::Acquire);
-                                    let packet = &mut self.list_core.load_packet_list()[idx];
+                                    let packet = &mut self.task_core.load_packet_list()[idx];
                                     let done_counter =
                                         packet.done_counter.fetch_sub(1, Ordering::Release);
                                     if done_counter == 1 {
-                                        self.list_core
+                                        self.task_core
                                             .packet_core
                                             .drop_bitmap
                                             .fetch_or(1_u64 << idx, Ordering::Release);
@@ -115,7 +115,7 @@ where
                             _ => panic!(),
                         }
                     } else {
-                        self.list_core
+                        self.task_core
                             .packet_core
                             .poll_schedule_bitmap
                             .fetch_or(masking, Ordering::Release);

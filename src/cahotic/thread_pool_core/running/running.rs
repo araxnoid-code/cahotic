@@ -1,6 +1,6 @@
 use std::{
     hint::spin_loop,
-    sync::atomic::Ordering,
+    sync::atomic::{AtomicPtr, Ordering},
     thread::{park_timeout, yield_now},
     time::Duration,
 };
@@ -20,9 +20,51 @@ where
                 break;
             }
 
+            // DROP
+
+            self.get_idx_drop();
+            let drop_idx = self.use_drop_idx;
+            if drop_idx != 64 {
+                let masking = 1_u64 << drop_idx;
+                let bitmap = self
+                    .task_core
+                    .packet_core
+                    .drop_bitmap
+                    .fetch_and(!masking, Ordering::Release);
+
+                if (bitmap & masking) != 0 {
+                    println!("drop!");
+                    unsafe {
+                        let start = drop_idx * 64;
+                        let end = start + 64;
+                        let batch = &(&(*self
+                            .task_core
+                            .packet_core
+                            .ring_buffer
+                            .load(Ordering::Relaxed)))[start..end];
+
+                        for packet in batch {
+                            let return_ptr = packet.drop.unwrap();
+                            drop(Box::from_raw(
+                                return_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
+                            ));
+                        }
+                    }
+
+                    self.done_task.fetch_add(1, Ordering::Release);
+
+                    self.task_core
+                        .packet_core
+                        .quota_bitmap
+                        .fetch_or(1_u64 << drop_idx, Ordering::Release);
+                }
+            }
+
+            // DROP
+
             let order_idx = self.order;
             let task = if order_idx != 4096 {
-                let order = self.list_core.packet_core.check_order(order_idx);
+                let order = self.task_core.packet_core.check_order(order_idx);
                 if let DequeueStatus::Ok(task) = order {
                     self.order = 4096;
                     task
@@ -32,7 +74,7 @@ where
                     continue;
                 }
             } else {
-                let tail = self.list_core.packet_core.dequeue();
+                let tail = self.task_core.packet_core.dequeue();
                 if let DequeueStatus::Ok(task) = tail {
                     task
                 } else if let DequeueStatus::Waiting(order) = tail {
@@ -53,7 +95,7 @@ where
                     let counter = counter.fetch_sub(1, Ordering::Release);
                     if counter == 1 {
                         let masking = 1_u64 << schedule_idx;
-                        self.list_core
+                        self.task_core
                             .packet_core
                             .poll_schedule_bitmap
                             .fetch_or(masking, Ordering::Release);
@@ -61,14 +103,16 @@ where
                 }
 
                 // drop packet
-                self.done_task.fetch_add(1, Ordering::Release);
-                // let done_counter = packet.done_counter.fetch_sub(1, Ordering::Release);
-                // if done_counter == 1 {
-                //     self.list_core
-                //         .packet_core
-                //         .drop_bitmap
-                //         .fetch_or(1 << packet_idx, Ordering::Release);
-                // }
+                let quota = task.drop_handler.unwrap();
+                let done_counter = quota.0.fetch_sub(1, Ordering::Relaxed);
+                if done_counter != 1 {
+                    self.done_task.fetch_add(1, Ordering::Relaxed);
+                } else {
+                    self.task_core
+                        .packet_core
+                        .drop_bitmap
+                        .fetch_or(1_u64 << quota.1, Ordering::Release);
+                }
             }
         }
     }
@@ -104,12 +148,12 @@ where
             }
             self.break_counter = 0;
 
-            let packet = &mut self.list_core.load_packet_list()[packet_idx];
+            let packet = &mut self.task_core.load_packet_list()[packet_idx];
 
             let tail = packet.tail.fetch_add(1, Ordering::Release);
             if tail + 1 == PN {
                 let masking = !(1_u64 << packet_idx);
-                self.list_core
+                self.task_core
                     .packet_core
                     .ready_bitmap
                     .fetch_and(masking, Ordering::Release);
@@ -130,7 +174,7 @@ where
                             let counter = counter.fetch_sub(1, Ordering::Release);
                             if counter == 1 {
                                 let masking = 1_u64 << schedule_idx;
-                                self.list_core
+                                self.task_core
                                     .packet_core
                                     .poll_schedule_bitmap
                                     .fetch_or(masking, Ordering::Release);
@@ -141,7 +185,7 @@ where
                         self.done_task.fetch_add(1, Ordering::Release);
                         let done_counter = packet.done_counter.fetch_sub(1, Ordering::Release);
                         if done_counter == 1 {
-                            self.list_core
+                            self.task_core
                                 .packet_core
                                 .drop_bitmap
                                 .fetch_or(1 << packet_idx, Ordering::Release);
@@ -156,7 +200,7 @@ where
 
     pub fn get_idx_packet(&mut self) {
         let mut bitmap = self
-            .list_core
+            .task_core
             .packet_core
             .ready_bitmap
             .load(Ordering::Acquire);

@@ -26,9 +26,25 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
+    pub fn get_quota_use(&self) -> usize {
+        while self.quota_bitmap.load(Ordering::Acquire).trailing_zeros() == 64 {
+            spin_loop();
+        }
+
+        let idx = self.quota_bitmap.load(Ordering::Acquire).trailing_zeros();
+        self.quota_bitmap
+            .fetch_and(!(1_u64 << idx), Ordering::Release);
+        self.use_quota.store(idx as usize, Ordering::Relaxed);
+        idx as usize
+    }
+
     pub fn enqueue(&self, task: F, id_counter: u64, in_task: &AtomicU64) -> PollWaiting<O> {
         unsafe {
+            let mut quota = self.use_quota.load(Ordering::Relaxed);
             let head = self.head.fetch_add(1, Ordering::Release) & 4095;
+            if (head & 63) == 0 {
+                quota = self.get_quota_use();
+            }
 
             let packet = &mut (&mut (*self.ring_buffer.load(Ordering::Relaxed)))[head as usize];
             while !packet.empty.load(Ordering::Acquire) {
@@ -46,9 +62,11 @@ where
                 task: ExecTask::Task(task),
                 return_ptr: Some(return_ptr),
                 poll_child: vec![],
+                drop_handler: Some((self.drop_packet_quota[quota], quota)),
             };
 
             packet.task = Some(waiting_task);
+            packet.drop = Some(return_ptr);
             packet.empty.store(false, Ordering::Release);
 
             PollWaiting {
@@ -121,6 +139,13 @@ where
 {
     pub fn spawn_task_update(&self, task: F) -> PollWaiting<O> {
         self.task_core.spawn_task_update(task)
+    }
+
+    pub fn get_quota_bitmap(&self) -> u64 {
+        self.task_core
+            .packet_core
+            .quota_bitmap
+            .load(Ordering::Acquire)
     }
 
     pub fn get_head(&self) -> u64 {

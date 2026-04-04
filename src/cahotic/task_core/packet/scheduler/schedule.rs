@@ -146,6 +146,7 @@ where
 
                 if let ScheduleTask::Task(task) = schedule.task {
                     let waiting_task = WaitingTask {
+                        drop_handler: None,
                         _id: id_counter,
                         task: ExecTask::<F, FS, O>::Task(task),
                         return_ptr: Some(return_ptr),
@@ -164,6 +165,7 @@ where
                 ) {
                     let execute_directly = schedule_vec.len() == 0;
                     let waiting_task = WaitingTask {
+                        drop_handler: None,
                         _id: id_counter,
                         task: ExecTask::<F, FS, O>::Scheduling(
                             task,

@@ -56,7 +56,7 @@ where
                     break_counter: 0,
                     done_task: done_task_clone,
                     join_flag: join_flag_clone,
-                    list_core: list_core_clone,
+                    task_core: list_core_clone,
                     use_packet_idx: 64,
                     masking_packet_idx: 64,
                     use_drop_idx: 64,
