@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    ExecTask, HeadRingBuffer, OutputTrait, Packet, PollWaiting, ScheduleSlot, SchedulerTrait,
-    TailRingBuffer, TaskTrait, WaitingTask,
+    ExecTask, HeadRingBuffer, OutputTrait, Packet, PollWaiting, QuotaCounter, ScheduleSlot,
+    SchedulerTrait, TailRingBuffer, TaskTrait, WaitingTask,
 };
 
 pub struct PacketCore<F, FS, O, const PN: usize>
@@ -40,7 +40,7 @@ where
     // drop
     pub quota_bitmap: AtomicU64,
     pub use_quota: AtomicUsize,
-    pub quota_list: [AtomicUsize; 64],
+    pub quota_list: [QuotaCounter; 64],
     // update
 }
 
@@ -76,7 +76,7 @@ where
             //
             use_quota: AtomicUsize::new(64),
             quota_bitmap: AtomicU64::new(u64::MAX),
-            quota_list: array::from_fn(|_| AtomicUsize::new(64)),
+            quota_list: array::from_fn(|_| QuotaCounter::default()),
             // update
         }
     }
