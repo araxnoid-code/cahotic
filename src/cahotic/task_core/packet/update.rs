@@ -1,15 +1,13 @@
-use crate::{ExecTask, OutputTrait, PacketCore, SchedulerTrait, TaskTrait, WaitingTask};
+//
+use crate::{
+    Cahotic, ExecTask, OutputTrait, PacketCore, PollWaiting, SchedulerTrait, TaskCore, TaskTrait,
+    WaitingTask,
+};
 use std::{
     hint::spin_loop,
     ptr::null_mut,
     sync::atomic::{AtomicPtr, AtomicU64, Ordering},
 };
-
-//
-pub enum EnqueueSlotStatus {
-    Ok(usize),
-    Waiting(usize),
-}
 
 pub enum DequeueStatus<F, FS, O>
 where
@@ -21,7 +19,6 @@ where
     Waiting(usize),
     None,
 }
-//
 
 impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
 where
@@ -33,11 +30,11 @@ where
         self.head.load(order)
     }
 
-    pub fn enqueue(&self, task: F, id_counter: u64, in_task: &AtomicU64) {
+    pub fn enqueue(&self, task: F, id_counter: u64, in_task: &AtomicU64) -> PollWaiting<O> {
         unsafe {
             let head = self.head.fetch_add(1, Ordering::Release) & 4095;
 
-            let packet = &mut (*self.ring_buffer.load(Ordering::Relaxed))[head];
+            let packet = &mut (&mut (*self.ring_buffer.load(Ordering::Relaxed)))[head];
             while !packet.empty.load(Ordering::Acquire) {
                 spin_loop();
             }
@@ -57,6 +54,10 @@ where
 
             packet.task = Some(waiting_task);
             packet.empty.store(false, Ordering::Release);
+
+            PollWaiting {
+                data_ptr: return_ptr,
+            }
         }
     }
 
@@ -64,7 +65,7 @@ where
         unsafe {
             let tail = self.tail.fetch_add(1, Ordering::Relaxed) & 4095;
 
-            let packet = &mut (*self.ring_buffer.load(Ordering::Relaxed))[tail];
+            let packet = &mut (&mut (*self.ring_buffer.load(Ordering::Relaxed)))[tail];
             while packet.empty.load(Ordering::Acquire) {
                 return DequeueStatus::Waiting(tail);
             }
@@ -79,3 +80,40 @@ where
         }
     }
 }
+//
+//
+impl<F, FD, O, const PN: usize> TaskCore<F, FD, O, PN>
+where
+    F: TaskTrait<O> + Send + 'static,
+    FD: SchedulerTrait<O> + Send + 'static,
+    O: 'static + OutputTrait + Send,
+{
+    pub(crate) fn spawn_task_update(&self, task: F) -> PollWaiting<O> {
+        self.packet_core.enqueue(
+            task,
+            self.id_counter.fetch_add(1, Ordering::Relaxed),
+            &self.in_task,
+        )
+    }
+}
+//
+//
+impl<F, FS, O, const N: usize, const PN: usize> Cahotic<F, FS, O, N, PN>
+where
+    F: TaskTrait<O> + 'static + Send + Sync,
+    FS: SchedulerTrait<O> + Send + 'static + Sync,
+    O: 'static + OutputTrait + Send + Sync,
+{
+    pub fn spawn_task_update(&self, task: F) -> PollWaiting<O> {
+        self.task_core.spawn_task_update(task)
+    }
+
+    pub fn get_head(&self) -> usize {
+        self.task_core.packet_core.head.load(Ordering::Acquire)
+    }
+
+    pub fn get_tail(&self) -> usize {
+        self.task_core.packet_core.tail.load(Ordering::Acquire)
+    }
+}
+//

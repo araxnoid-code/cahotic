@@ -33,7 +33,7 @@ where
     pub use_packet: AtomicU32,
     //
     // update
-    pub ring_buffer: AtomicPtr<[Packet<F, FS, O, PN>; 4096]>,
+    pub ring_buffer: AtomicPtr<Vec<Packet<F, FS, O, PN>>>,
     pub head: HeadRingBuffer,
     pub tail: TailRingBuffer,
     // update
@@ -63,9 +63,9 @@ where
             //
             use_packet: AtomicU32::new(64),
             // update
-            ring_buffer: AtomicPtr::new(Box::into_raw(Box::new(array::from_fn(|i| {
-                Packet::init(i)
-            })))),
+            ring_buffer: AtomicPtr::new(Box::into_raw(Box::new(
+                (0..4096).into_iter().map(|id| Packet::init(id)).collect(),
+            ))),
             head: HeadRingBuffer::default(),
             tail: TailRingBuffer::default(),
             // update
