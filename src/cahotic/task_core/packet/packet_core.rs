@@ -145,7 +145,7 @@ where
 
                 // create waiting task
                 let waiting_task = WaitingTask {
-                    drop_handler: None,
+                    drop_handler: 0,
                     _id: id_counter,
                     task: ExecTask::Task(task),
                     return_ptr: Some(return_ptr),

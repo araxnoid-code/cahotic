@@ -15,14 +15,25 @@ where
 {
     pub(crate) counter: AtomicUsize,
     pub(crate) head: AtomicUsize,
-    pub(crate) drop_list: [Option<&'static AtomicPtr<O>>; 64],
+    pub(crate) drop_list: [Option<(
+        &'static AtomicPtr<O>,
+        Option<&'static AtomicUsize>,
+        Option<&'static AtomicUsize>,
+    )>; 64],
 }
 
 impl<O> QuotaCounter<O>
 where
     O: 'static + OutputTrait + Send,
 {
-    pub fn push(&mut self, value: &'static AtomicPtr<O>) {
+    pub fn push(
+        &mut self,
+        value: (
+            &'static AtomicPtr<O>,
+            Option<&'static AtomicUsize>,
+            Option<&'static AtomicUsize>,
+        ),
+    ) {
         let idx = self.head.fetch_add(1, Ordering::Relaxed);
         self.drop_list[idx] = Some(value);
     }
@@ -31,7 +42,7 @@ where
         let head = self.head.load(Ordering::Relaxed);
         for idx in 0..head {
             unsafe {
-                if let Some(return_ptr) = self.drop_list[idx].take() {
+                if let Some((return_ptr, candidate, poll_counter)) = self.drop_list[idx].take() {
                     drop(Box::from_raw(
                         return_ptr.swap(null_mut(), Ordering::Relaxed),
                     ));
@@ -39,6 +50,18 @@ where
                     drop(Box::from_raw(
                         return_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
                     ));
+
+                    if let Some(candidate) = candidate {
+                        drop(Box::from_raw(
+                            candidate as *const AtomicUsize as *mut AtomicUsize,
+                        ));
+                    }
+
+                    if let Some(counter) = poll_counter {
+                        drop(Box::from_raw(
+                            counter as *const AtomicUsize as *mut AtomicUsize,
+                        ));
+                    }
                 }
             }
         }

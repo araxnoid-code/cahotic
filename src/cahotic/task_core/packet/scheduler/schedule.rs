@@ -54,7 +54,7 @@ where
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
         Schedule {
             task: ScheduleTask::Initial(task),
-            candidate_done_counter: 1,
+            candidate_done_counter: 0,
             candidate_packet_idx: Box::leak(Box::new(AtomicUsize::new(64))),
             poll_child: vec![],
             poll_counter: None,
@@ -72,7 +72,7 @@ where
         Schedule {
             task: ScheduleTask::Schedule(schedule, allocated_idx),
             return_ptr,
-            candidate_done_counter: 1,
+            candidate_done_counter: 0,
             candidate_packet_idx: Box::leak(Box::new(AtomicUsize::new(64))),
             shcedule_vec: Some(vec![]),
             candidate_packet_vec: Some(vec![]),
@@ -146,7 +146,7 @@ where
 
                 if let ScheduleTask::Initial(task) = schedule.task {
                     let waiting_task = WaitingTask {
-                        drop_handler: None,
+                        drop_handler: 0,
                         _id: id_counter,
                         task: ExecTask::<F, FS, O>::Task(task),
                         return_ptr: Some(return_ptr),
@@ -165,7 +165,7 @@ where
                 ) {
                     let execute_directly = schedule_vec.len() == 0;
                     let waiting_task = WaitingTask {
-                        drop_handler: None,
+                        drop_handler: 0,
                         _id: id_counter,
                         task: ExecTask::<F, FS, O>::Scheduling(
                             task,
