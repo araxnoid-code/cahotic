@@ -30,8 +30,8 @@ where
             return;
         }
         self.sch_counter = 0;
-        self.get_idx_sch();
 
+        self.get_idx_sch();
         let sch_idx = self.use_sch_idx;
         if sch_idx != 64 {
             self.break_counter = 0;
@@ -42,6 +42,7 @@ where
                 .poll_schedule_bitmap
                 .fetch_and(!masking, Ordering::Release);
             bitmap &= masking;
+
             if bitmap != 0 {
                 unsafe {
                     let schedule_slot = (*self

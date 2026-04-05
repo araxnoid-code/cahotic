@@ -40,7 +40,7 @@ where
     // drop
     pub quota_bitmap: AtomicU64,
     pub use_quota: AtomicUsize,
-    pub quota_list: [QuotaCounter; 64],
+    pub quota_list: AtomicPtr<[QuotaCounter<O>; 64]>,
     // update
 }
 
@@ -76,7 +76,9 @@ where
             //
             use_quota: AtomicUsize::new(64),
             quota_bitmap: AtomicU64::new(u64::MAX),
-            quota_list: array::from_fn(|_| QuotaCounter::default()),
+            quota_list: AtomicPtr::new(Box::into_raw(Box::new(array::from_fn(|_| {
+                QuotaCounter::default()
+            })))),
             // update
         }
     }

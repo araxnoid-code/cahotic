@@ -15,7 +15,7 @@ where
     O: 'static + OutputTrait + Send,
 {
     // task
-    Task(F),
+    Initial(F),
     // schedule, allocated schedule-bitmap
     Schedule(FS, u32),
     _Phantom(O),
@@ -53,7 +53,7 @@ where
     pub fn scheduling_create_initial(&self, task: F) -> Schedule<F, FS, O> {
         let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
         Schedule {
-            task: ScheduleTask::Task(task),
+            task: ScheduleTask::Initial(task),
             candidate_done_counter: 1,
             candidate_packet_idx: Box::leak(Box::new(AtomicUsize::new(64))),
             poll_child: vec![],
@@ -144,7 +144,7 @@ where
                 // create return_ptr
                 let return_ptr: &'static AtomicPtr<O> = schedule.return_ptr;
 
-                if let ScheduleTask::Task(task) = schedule.task {
+                if let ScheduleTask::Initial(task) = schedule.task {
                     let waiting_task = WaitingTask {
                         drop_handler: None,
                         _id: id_counter,

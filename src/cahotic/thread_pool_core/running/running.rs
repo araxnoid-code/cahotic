@@ -5,7 +5,9 @@ use std::{
     time::Duration,
 };
 
-use crate::{DequeueStatus, ExecTask, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
+use crate::{
+    DequeueStatus, ExecTask, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait, ThreadUnit,
+};
 
 impl<F, FD, O, const PN: usize> ThreadUnit<F, FD, O, PN>
 where
@@ -20,11 +22,102 @@ where
                 break;
             }
 
-            // DROP
+            // SCHEDULING
+            // self.get_idx_sch();
+            // let sch_idx = self.use_sch_idx;
+            // if sch_idx != 64 {
+            //     // self.break_counter = 0;
+            //     let masking = 1_u64 << sch_idx;
+            //     let bitmap = self
+            //         .task_core
+            //         .packet_core
+            //         .poll_schedule_bitmap
+            //         .fetch_and(!masking, Ordering::Release);
 
+            //     if (bitmap & masking) != 0 {
+            //         unsafe {
+            //             let schedule_slot = (*self
+            //                 .task_core
+            //                 .packet_core
+            //                 .schedule_list
+            //                 .load(Ordering::Acquire))[sch_idx]
+            //                 .schedule
+            //                 .take();
+
+            //             self.task_core
+            //                 .packet_core
+            //                 .allo_schedule_bitmap
+            //                 .fetch_or(masking, Ordering::Release);
+
+            //             if let Some(schedule) = schedule_slot {
+            //                 if let ExecTask::Scheduling(f, scheduler_vec, _, candidate_packet_idx) =
+            //                     schedule.task
+            //                 {
+            //                     let output = Box::into_raw(Box::new(
+            //                         f.execute(ScheduleVec { vec: scheduler_vec }),
+            //                     ));
+            //                     schedule
+            //                         .return_ptr
+            //                         .unwrap()
+            //                         .store(output, Ordering::Release);
+
+            //                     // update child
+            //                     let poll_child = schedule.poll_child;
+            //                     for (counter, schedule_idx) in poll_child {
+            //                         let counter = counter.fetch_sub(1, Ordering::Release);
+            //                         if counter == 1 {
+            //                             let masking = 1_u64 << schedule_idx;
+            //                             self.task_core
+            //                                 .packet_core
+            //                                 .poll_schedule_bitmap
+            //                                 .fetch_or(masking, Ordering::Release);
+            //                         }
+            //                     }
+
+            //                     // drop packet
+            //                     let quota_idx = schedule.drop_handler.unwrap();
+            //                     let done_counter = self.task_core.packet_core.quota_list[quota_idx]
+            //                         .fetch_sub(1, Ordering::Relaxed);
+            //                     if done_counter != 1 {
+            //                         self.done_task.fetch_add(1, Ordering::Relaxed);
+            //                     } else {
+            //                         self.task_core
+            //                             .packet_core
+            //                             .drop_bitmap
+            //                             .fetch_or(1_u64 << quota_idx, Ordering::Release);
+            //                     }
+
+            //                     // drop schedule
+            //                     for idx in candidate_packet_idx {
+            //                         let idx = idx.load(Ordering::Acquire);
+            //                         let done_counter = self.task_core.packet_core.quota_list[idx]
+            //                             .fetch_sub(1, Ordering::Relaxed);
+            //                         if done_counter != 1 {
+            //                             self.done_task.fetch_add(1, Ordering::Relaxed);
+            //                         } else {
+            //                             self.task_core
+            //                                 .packet_core
+            //                                 .drop_bitmap
+            //                                 .fetch_or(1_u64 << idx, Ordering::Release);
+            //                         }
+            //                     }
+            //                 }
+            //             } else {
+            //                 self.task_core
+            //                     .packet_core
+            //                     .poll_schedule_bitmap
+            //                     .fetch_or(masking, Ordering::Release);
+            //             }
+            //         }
+            //     }
+            // }
+            // SCHEDULING
+
+            // DROP
             self.get_idx_drop();
             let drop_idx = self.use_drop_idx;
             if drop_idx != 64 {
+                // if false {
                 let masking = 1_u64 << drop_idx;
                 let bitmap = self
                     .task_core
@@ -33,25 +126,16 @@ where
                     .fetch_and(!masking, Ordering::Release);
 
                 if (bitmap & masking) != 0 {
-                    println!("drop!");
                     unsafe {
-                        let start = drop_idx * 64;
-                        let end = start + 64;
-                        let batch = &(&(*self
+                        let quota = &mut (&mut (*self
                             .task_core
                             .packet_core
-                            .ring_buffer
-                            .load(Ordering::Relaxed)))[start..end];
+                            .quota_list
+                            .load(Ordering::Relaxed)))[drop_idx];
 
-                        for packet in batch {
-                            let return_ptr = packet.drop.unwrap();
-                            drop(Box::from_raw(
-                                return_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
-                            ));
-                        }
+                        quota.free();
                     }
 
-                    self.task_core.packet_core.quota_list[drop_idx].store(64, Ordering::Relaxed);
                     self.done_task.fetch_add(1, Ordering::Relaxed);
                     self.task_core
                         .packet_core
@@ -103,21 +187,32 @@ where
                 }
 
                 // drop packet
-                let quota_idx = task.drop_handler.unwrap();
-                let done_counter = self.task_core.packet_core.quota_list[quota_idx]
-                    .fetch_sub(1, Ordering::Relaxed);
-                if done_counter != 1 {
-                    self.done_task.fetch_add(1, Ordering::Relaxed);
-                } else {
-                    self.task_core
+                unsafe {
+                    let quota_idx = task.drop_handler.unwrap();
+                    let quota = &(&(*self
+                        .task_core
                         .packet_core
-                        .drop_bitmap
-                        .fetch_or(1_u64 << quota_idx, Ordering::Release);
+                        .quota_list
+                        .load(Ordering::Relaxed)))[quota_idx];
+
+                    let done_counter = quota.fetch_sub(1, Ordering::Relaxed);
+                    if done_counter != 1 {
+                        self.done_task.fetch_add(1, Ordering::Relaxed);
+                    } else {
+                        // println!(
+                        //     "{} masking to drop idx {} cause the counter {} in task id {}",
+                        //     self._id, quota_idx, done_counter, task._id
+                        // );
+                        self.task_core
+                            .packet_core
+                            .drop_bitmap
+                            .fetch_or(1_u64 << quota_idx, Ordering::Release);
+                    }
                 }
             }
         }
     }
-    //
+    ///////////////////////////////
 
     pub fn running(&mut self) {
         loop {
