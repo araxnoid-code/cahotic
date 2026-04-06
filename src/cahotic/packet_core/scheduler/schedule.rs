@@ -1,12 +1,10 @@
 use std::{
     hint::spin_loop,
     ptr::null_mut,
-    sync::atomic::{AtomicPtr, AtomicU64, AtomicUsize, Ordering},
+    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
-use crate::{
-    ExecTask, OutputTrait, PacketCore, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask,
-};
+use crate::{OutputTrait, PacketCore, SchedulerTrait, TaskTrait};
 
 pub(crate) enum ScheduleTask<F, FS, O>
 where

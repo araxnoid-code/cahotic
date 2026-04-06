@@ -1,5 +1,3 @@
-use std::sync::atomic::Ordering;
-
 use crate::{OutputTrait, PacketCore, PollWaiting, Schedule, SchedulerTrait, TaskTrait};
 
 impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
