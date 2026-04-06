@@ -1,7 +1,7 @@
 //
 use crate::{
     Cahotic, ExecTask, OutputTrait, PacketCore, PollWaiting, Schedule, ScheduleTask,
-    SchedulerTrait, TaskCore, TaskTrait, WaitingTask,
+    SchedulerTrait, TaskTrait, WaitingTask,
 };
 use std::{
     hint::spin_loop,
@@ -38,7 +38,7 @@ where
         idx as usize
     }
 
-    pub fn enqueue(&self, task: F, id_counter: u64, in_task: &AtomicU64) -> PollWaiting<O> {
+    pub fn enqueue(&self, task: F) -> PollWaiting<O> {
         unsafe {
             let mut quota_idx = self.use_quota.load(Ordering::Relaxed);
             let head = self.head.fetch_add(1, Ordering::Release) & 4095;
@@ -53,13 +53,13 @@ where
             }
 
             // update handler
-            in_task.fetch_add(1, Ordering::Release);
+            self.in_task.fetch_add(1, Ordering::Release);
             // create return_ptr
             let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
 
             // create waiting task
             let waiting_task = WaitingTask {
-                _id: id_counter,
+                _id: head,
                 task: ExecTask::Task(task),
                 return_ptr: Some(return_ptr),
                 poll_child: vec![],
@@ -76,12 +76,7 @@ where
         }
     }
 
-    pub fn schedule_enqueue(
-        &self,
-        schedule: Schedule<F, FS, O>,
-        id_counter: u64,
-        in_task: &AtomicU64,
-    ) -> PollWaiting<O> {
+    pub fn schedule_enqueue(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
         unsafe {
             let mut quota_idx = self.use_quota.load(Ordering::Relaxed);
             let head = self.head.fetch_add(1, Ordering::Release) & 4095;
@@ -99,14 +94,14 @@ where
                 .store(quota_idx, Ordering::Release);
 
             // update handler
-            in_task.fetch_add(1, Ordering::Release);
+            self.in_task.fetch_add(1, Ordering::Release);
             // create return_ptr
             let return_ptr: &'static AtomicPtr<O> = schedule.return_ptr;
 
             if let ScheduleTask::Initial(task) = schedule.task {
                 let waiting_task = WaitingTask {
                     drop_handler: quota_idx,
-                    _id: id_counter,
+                    _id: head,
                     task: ExecTask::<F, FS, O>::Task(task),
                     return_ptr: Some(return_ptr),
                     poll_child: schedule.poll_child,
@@ -126,7 +121,7 @@ where
             ) {
                 let waiting_task = WaitingTask {
                     drop_handler: quota_idx,
-                    _id: id_counter,
+                    _id: head,
                     task: ExecTask::<F, FS, O>::Scheduling(
                         task,
                         schedule_vec,
@@ -196,26 +191,18 @@ where
 
 //
 //
-impl<F, FD, O, const PN: usize> TaskCore<F, FD, O, PN>
+impl<F, FD, O, const PN: usize> PacketCore<F, FD, O, PN>
 where
     F: TaskTrait<O> + Send + 'static,
     FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub(crate) fn spawn_task_update(&self, task: F) -> PollWaiting<O> {
-        self.packet_core.enqueue(
-            task,
-            self.id_counter.fetch_add(1, Ordering::Relaxed),
-            &self.in_task,
-        )
+        self.enqueue(task)
     }
 
     pub fn schedule_exec_update(&self, schedule: Schedule<F, FD, O>) -> PollWaiting<O> {
-        self.packet_core.schedule_enqueue(
-            schedule,
-            self.id_counter.fetch_add(1, Ordering::Relaxed),
-            &self.in_task,
-        )
+        self.schedule_enqueue(schedule)
     }
 }
 //
@@ -235,18 +222,15 @@ where
     }
 
     pub fn get_quota_bitmap(&self) -> u64 {
-        self.task_core
-            .packet_core
-            .quota_bitmap
-            .load(Ordering::Acquire)
+        self.task_core.quota_bitmap.load(Ordering::Acquire)
     }
 
     pub fn get_head(&self) -> u64 {
-        self.task_core.packet_core.head.load(Ordering::Acquire)
+        self.task_core.head.load(Ordering::Acquire)
     }
 
     pub fn get_tail(&self) -> u64 {
-        self.task_core.packet_core.tail.load(Ordering::Acquire)
+        self.task_core.tail.load(Ordering::Acquire)
     }
 }
 //

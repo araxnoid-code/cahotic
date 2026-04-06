@@ -1,7 +1,4 @@
-use std::{
-    ptr::null_mut,
-    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
-};
+use std::sync::atomic::Ordering;
 
 use crate::{OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
 
@@ -12,11 +9,7 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub fn get_idx_drop(&mut self) {
-        let mut bitmap = self
-            .task_core
-            .packet_core
-            .drop_bitmap
-            .load(Ordering::Acquire);
+        let mut bitmap = self.task_core.drop_bitmap.load(Ordering::Acquire);
 
         let masking = self.masking_drop_idx;
         if masking != 64 {
@@ -42,23 +35,18 @@ where
             let masking = 1_u64 << drop_idx;
             let bitmap = self
                 .task_core
-                .packet_core
                 .drop_bitmap
                 .fetch_and(!masking, Ordering::Release);
             if (bitmap & masking) != 0 {
                 unsafe {
-                    let quota = &mut (&mut (*self
-                        .task_core
-                        .packet_core
-                        .quota_list
-                        .load(Ordering::Relaxed)))[drop_idx];
+                    let quota =
+                        &mut (&mut (*self.task_core.quota_list.load(Ordering::Relaxed)))[drop_idx];
 
                     quota.free();
                 }
 
                 self.done_task.fetch_add(1, Ordering::Relaxed);
                 self.task_core
-                    .packet_core
                     .quota_bitmap
                     .fetch_or(1_u64 << drop_idx, Ordering::Release);
             }

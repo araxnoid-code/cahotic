@@ -2,7 +2,10 @@ use std::{
     array,
     hint::spin_loop,
     ptr::null_mut,
-    sync::atomic::{AtomicPtr, AtomicU32, AtomicU64, AtomicUsize, Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicPtr, AtomicU32, AtomicU64, AtomicUsize, Ordering},
+    },
     u64,
 };
 
@@ -17,6 +20,9 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
+    // handler
+    pub(crate) in_task: Arc<AtomicU64>,
+
     // // schedule
     pub schedule_list: AtomicPtr<[ScheduleSlot<F, FS, O>; 64]>,
     //
@@ -43,6 +49,10 @@ where
 {
     pub fn init() -> PacketCore<F, FS, O, PN> {
         Self {
+            // handler
+            in_task: Arc::new(AtomicU64::new(0)),
+
+            //
             schedule_list: AtomicPtr::new(Box::into_raw(Box::new(array::from_fn(|i| {
                 ScheduleSlot::init(i)
             })))),

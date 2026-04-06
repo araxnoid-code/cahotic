@@ -3,7 +3,7 @@ use std::sync::{
     atomic::{AtomicBool, AtomicU64},
 };
 
-use crate::{OutputTrait, SchedulerTrait, TaskCore, TaskTrait};
+use crate::{OutputTrait, PacketCore, SchedulerTrait, TaskTrait};
 
 pub struct ThreadUnit<F, FS, O, const PN: usize>
 where
@@ -22,7 +22,7 @@ where
     pub(crate) done_task: Arc<AtomicU64>,
 
     // // list core
-    pub(crate) task_core: Arc<TaskCore<F, FS, O, PN>>,
+    pub(crate) task_core: Arc<PacketCore<F, FS, O, PN>>,
 
     // packet
     // // packet

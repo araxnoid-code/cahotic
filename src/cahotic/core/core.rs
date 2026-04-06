@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    OutputTrait, PollWaiting, Schedule, SchedulerTrait, TaskCore, TaskTrait, ThreadPoolCore,
+    OutputTrait, PacketCore, PollWaiting, Schedule, SchedulerTrait, TaskTrait, ThreadPoolCore,
 };
 
 pub struct Cahotic<F, FS, O, const N: usize, const PN: usize>
@@ -11,7 +11,7 @@ where
     O: 'static + OutputTrait + Send,
 {
     // task Core
-    pub task_core: Arc<TaskCore<F, FS, O, PN>>,
+    pub task_core: Arc<PacketCore<F, FS, O, PN>>,
 
     // thread pool Core
     thread_pool_core: ThreadPoolCore<F, FS, O, N, PN>,
@@ -24,7 +24,7 @@ where
     O: 'static + OutputTrait + Send + Sync,
 {
     pub fn init() -> Cahotic<F, FS, O, N, PN> {
-        let list_core = Arc::new(TaskCore::<F, FS, O, PN>::init());
+        let list_core = Arc::new(PacketCore::<F, FS, O, PN>::init());
         let thread_pool_core = ThreadPoolCore::<F, FS, O, N, PN>::init(list_core.clone());
         Self {
             task_core: list_core,
@@ -43,13 +43,11 @@ where
     }
 
     pub fn scheduling_create_initial(&self, task: F) -> Schedule<F, FS, O> {
-        self.task_core.packet_core.scheduling_create_initial(task)
+        self.task_core.scheduling_create_initial(task)
     }
 
     pub fn scheduling_create_schedule(&self, schedule: FS) -> Schedule<F, FS, O> {
-        self.task_core
-            .packet_core
-            .scheduling_create_schedule(schedule)
+        self.task_core.scheduling_create_schedule(schedule)
     }
 
     pub fn schedule_after(
@@ -57,7 +55,7 @@ where
         schedule: &mut Schedule<F, FS, O>,
         after: &mut Schedule<F, FS, O>,
     ) -> Result<(), &str> {
-        self.task_core.packet_core.schedule_after(schedule, after)
+        self.task_core.schedule_after(schedule, after)
     }
 
     // end

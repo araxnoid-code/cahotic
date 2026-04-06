@@ -155,7 +155,7 @@ where
 
             let order_idx = self.order;
             let task = if order_idx != 4096 {
-                let order = self.task_core.packet_core.check_order(order_idx);
+                let order = self.task_core.check_order(order_idx);
                 if let DequeueStatus::Ok(task) = order {
                     self.order = 4096;
                     task
@@ -165,7 +165,7 @@ where
                     continue;
                 }
             } else {
-                let tail = self.task_core.packet_core.dequeue();
+                let tail = self.task_core.dequeue();
                 if let DequeueStatus::Ok(task) = tail {
                     task
                 } else if let DequeueStatus::Waiting(order) = tail {
@@ -187,7 +187,6 @@ where
                     if counter == 1 {
                         let masking = 1_u64 << schedule_idx;
                         self.task_core
-                            .packet_core
                             .poll_schedule_bitmap
                             .fetch_or(masking, Ordering::Release);
                     }
@@ -196,18 +195,13 @@ where
                 // drop packet
                 unsafe {
                     let quota_idx = task.drop_handler;
-                    let quota = &(&(*self
-                        .task_core
-                        .packet_core
-                        .quota_list
-                        .load(Ordering::Relaxed)))[quota_idx];
+                    let quota = &(&(*self.task_core.quota_list.load(Ordering::Relaxed)))[quota_idx];
 
                     let done_counter = quota.fetch_sub(1, Ordering::Relaxed);
                     if done_counter != 1 {
                         self.done_task.fetch_add(1, Ordering::Relaxed);
                     } else {
                         self.task_core
-                            .packet_core
                             .drop_bitmap
                             .fetch_or(1_u64 << quota_idx, Ordering::Release);
                     }

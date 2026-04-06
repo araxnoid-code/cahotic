@@ -9,11 +9,7 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub fn get_idx_sch(&mut self) {
-        let mut bitmap = self
-            .task_core
-            .packet_core
-            .poll_schedule_bitmap
-            .load(Ordering::Acquire);
+        let mut bitmap = self.task_core.poll_schedule_bitmap.load(Ordering::Acquire);
         let masking = self.masking_sch_idx;
         if masking != 64 {
             bitmap &= !(1_u64 << masking);
@@ -38,22 +34,17 @@ where
             let masking = 1_u64 << sch_idx;
             let bitmap = self
                 .task_core
-                .packet_core
                 .poll_schedule_bitmap
                 .fetch_and(!masking, Ordering::Release);
 
             if (bitmap & masking) != 0 {
                 unsafe {
-                    let schedule_slot = (*self
-                        .task_core
-                        .packet_core
-                        .schedule_list
-                        .load(Ordering::Acquire))[sch_idx]
+                    let schedule_slot = (*self.task_core.schedule_list.load(Ordering::Acquire))
+                        [sch_idx]
                         .schedule
                         .take();
 
                     self.task_core
-                        .packet_core
                         .allo_schedule_bitmap
                         .fetch_or(masking, Ordering::Release);
 
@@ -76,7 +67,6 @@ where
                                 if counter == 1 {
                                     let masking = 1_u64 << schedule_idx;
                                     self.task_core
-                                        .packet_core
                                         .poll_schedule_bitmap
                                         .fetch_or(masking, Ordering::Release);
                                 }
@@ -84,17 +74,13 @@ where
 
                             // drop packet
                             let quota_idx = schedule.drop_handler;
-                            let quota = &(&(*self
-                                .task_core
-                                .packet_core
-                                .quota_list
-                                .load(Ordering::Relaxed)))[quota_idx];
+                            let quota =
+                                &(&(*self.task_core.quota_list.load(Ordering::Relaxed)))[quota_idx];
                             let done_counter = quota.fetch_sub(1, Ordering::Relaxed);
                             if done_counter != 1 {
                                 self.done_task.fetch_add(1, Ordering::Relaxed);
                             } else {
                                 self.task_core
-                                    .packet_core
                                     .drop_bitmap
                                     .fetch_or(1_u64 << quota_idx, Ordering::Release);
                             }
@@ -102,17 +88,13 @@ where
                             // drop schedule
                             for idx in candidate_packet_idx {
                                 let idx = idx.load(Ordering::Acquire);
-                                let quota = &(&(*self
-                                    .task_core
-                                    .packet_core
-                                    .quota_list
-                                    .load(Ordering::Relaxed)))[idx];
+                                let quota =
+                                    &(&(*self.task_core.quota_list.load(Ordering::Relaxed)))[idx];
                                 let done_counter = quota.fetch_sub(1, Ordering::Relaxed);
                                 if done_counter != 1 {
                                     self.done_task.fetch_add(1, Ordering::Relaxed);
                                 } else {
                                     self.task_core
-                                        .packet_core
                                         .drop_bitmap
                                         .fetch_or(1_u64 << idx, Ordering::Release);
                                 }
@@ -120,7 +102,6 @@ where
                         }
                     } else {
                         self.task_core
-                            .packet_core
                             .poll_schedule_bitmap
                             .fetch_or(masking, Ordering::Release);
                     }
