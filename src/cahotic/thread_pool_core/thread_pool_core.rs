@@ -1,15 +1,14 @@
 use std::{
     array,
     hint::spin_loop,
-    ptr::null_mut,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     thread::{JoinHandle, spawn},
 };
 
-use crate::{OutputTrait, SchedulerTrait, TaskCore, TaskTrait, ThreadUnit};
+use crate::{OutputTrait, PacketCore, SchedulerTrait, TaskTrait, ThreadUnit};
 
 pub struct ThreadPoolCore<F, FD, O, const N: usize, const PN: usize>
 where
@@ -25,7 +24,7 @@ where
     pub(crate) join_flag: Arc<AtomicBool>,
 
     // list core
-    list_core: Arc<TaskCore<F, FD, O, PN>>,
+    list_core: Arc<PacketCore<F, FD, O, PN>>,
 }
 
 impl<F, FD, O, const N: usize, const PN: usize> ThreadPoolCore<F, FD, O, N, PN>
@@ -34,7 +33,7 @@ where
     FD: SchedulerTrait<O> + Send + 'static + Sync,
     O: OutputTrait + Send + Sync,
 {
-    pub fn init(list_core: Arc<TaskCore<F, FD, O, PN>>) -> ThreadPoolCore<F, FD, O, N, PN> {
+    pub fn init(list_core: Arc<PacketCore<F, FD, O, PN>>) -> ThreadPoolCore<F, FD, O, N, PN> {
         // handler
         let join_flag = Arc::new(AtomicBool::new(false));
         let done_task = Arc::new(AtomicU64::new(0));
@@ -56,15 +55,14 @@ where
                     break_counter: 0,
                     done_task: done_task_clone,
                     join_flag: join_flag_clone,
-                    list_core: list_core_clone,
-                    use_packet_idx: 64,
-                    masking_packet_idx: 64,
+                    task_core: list_core_clone,
                     use_drop_idx: 64,
                     masking_drop_idx: 64,
                     drop_counter: 0,
                     sch_counter: 0,
                     masking_sch_idx: 64,
                     use_sch_idx: 64,
+                    order: 4096,
                 };
 
                 while !block_clone.load(Ordering::Acquire) {
@@ -87,37 +85,23 @@ where
     }
 
     pub fn join(self) {
-        unsafe {
-            // clean
-            // check, all task done
-            self.list_core.submit_packet();
-            loop {
-                if self.list_core.in_task.load(Ordering::Acquire)
-                    <= self.done_task.load(Ordering::Acquire)
-                {
-                    break;
-                }
-                spin_loop();
+        // unsafe {
+        // clean
+        // check, all task done
+        loop {
+            if self.list_core.in_task.load(Ordering::Acquire)
+                <= self.done_task.load(Ordering::Acquire)
+            {
+                break;
             }
-
-            // join
-            self.join_flag.store(true, Ordering::Release);
-            for join_handle in self.pool {
-                join_handle.join().unwrap();
-            }
-
-            // clean packet
-            let packet_list_ptr = self
-                .list_core
-                .packet_core
-                .packet_list
-                .swap(null_mut(), Ordering::Acquire);
-            for packet in &*packet_list_ptr {
-                drop(Box::from_raw(
-                    packet.done_counter as *const AtomicUsize as *mut AtomicUsize,
-                ));
-            }
-            drop(Box::from_raw(packet_list_ptr));
+            spin_loop();
         }
+
+        // join
+        self.join_flag.store(true, Ordering::Release);
+        for join_handle in self.pool {
+            join_handle.join().unwrap();
+        }
+        // }
     }
 }

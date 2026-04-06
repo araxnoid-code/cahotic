@@ -1,7 +1,4 @@
-use std::{
-    ptr::null_mut,
-    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
-};
+use std::sync::atomic::Ordering;
 
 use crate::{OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
 
@@ -12,11 +9,7 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub fn get_idx_drop(&mut self) {
-        let mut bitmap = self
-            .list_core
-            .packet_core
-            .drop_bitmap
-            .load(Ordering::Acquire);
+        let mut bitmap = self.task_core.drop_bitmap.load(Ordering::Acquire);
 
         let masking = self.masking_drop_idx;
         if masking != 64 {
@@ -34,52 +27,27 @@ where
             return;
         }
         self.drop_counter = 0;
-        self.get_idx_drop();
 
+        self.get_idx_drop();
         let drop_idx = self.use_drop_idx;
         if drop_idx != 64 {
             self.break_counter = 0;
             let masking = 1_u64 << drop_idx;
-            let mut bitmap = self
-                .list_core
-                .packet_core
+            let bitmap = self
+                .task_core
                 .drop_bitmap
                 .fetch_and(!masking, Ordering::Release);
-            bitmap &= masking;
+            if (bitmap & masking) != 0 {
+                unsafe {
+                    let quota =
+                        &mut (&mut (*self.task_core.quota_list.load(Ordering::Relaxed)))[drop_idx];
 
-            if bitmap != 0 {
-                let packet = &mut self.list_core.load_packet_list()[drop_idx];
-                for i in 0..packet.head.load(Ordering::Acquire) {
-                    if let Some((return_ptr, candidate_ptr, poll_counter)) =
-                        packet.drop_list[i].take()
-                    {
-                        unsafe {
-                            drop(Box::from_raw(
-                                return_ptr.swap(null_mut(), Ordering::Release),
-                            ));
-                            drop(Box::from_raw(
-                                return_ptr as *const AtomicPtr<O> as *mut AtomicPtr<O>,
-                            ));
-
-                            if let Some(candidate_ptr) = candidate_ptr {
-                                drop(Box::from_raw(
-                                    candidate_ptr as *const AtomicUsize as *mut AtomicUsize,
-                                ));
-                            }
-
-                            if let Some(poll_counter) = poll_counter {
-                                drop(Box::from_raw(
-                                    poll_counter as *const AtomicUsize as *mut AtomicUsize,
-                                ));
-                            }
-                        }
-                    }
+                    quota.free();
                 }
 
-                self.done_task.fetch_add(1, Ordering::Release);
-                self.list_core
-                    .packet_core
-                    .empty_bitmap
+                self.done_task.fetch_add(1, Ordering::Relaxed);
+                self.task_core
+                    .quota_bitmap
                     .fetch_or(1_u64 << drop_idx, Ordering::Release);
             }
         }
