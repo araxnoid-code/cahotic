@@ -9,7 +9,7 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub fn spawn_task(&self, task: F) -> PollWaiting<O> {
-        self.packet_core.add_task(
+        self.packet_core.enqueue(
             task,
             self.id_counter.fetch_add(1, Ordering::Release),
             &self.in_task,

@@ -36,8 +36,4 @@ where
             packet_core: PacketCore::init(),
         }
     }
-
-    pub fn submit_packet(&self) {
-        let _ = self.packet_core.submit_packet(&self.in_task);
-    }
 }

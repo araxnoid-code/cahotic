@@ -9,7 +9,7 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub fn schedule_exec(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
-        self.packet_core.add_schedule(
+        self.packet_core.schedule_enqueue(
             schedule,
             self.id_counter.fetch_add(1, Ordering::Release),
             &self.in_task,

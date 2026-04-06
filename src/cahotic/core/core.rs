@@ -37,11 +37,6 @@ where
         self.task_core.spawn_task(f)
     }
 
-    // packet
-    pub fn submit_packet(&self) {
-        self.task_core.submit_packet();
-    }
-
     // scheduling
     pub fn schedule_exec(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
         self.task_core.schedule_exec(schedule)

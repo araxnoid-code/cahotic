@@ -73,7 +73,7 @@ where
                 }
 
                 // running
-                thread_unit.running_update();
+                thread_unit.running();
             })
         });
 
@@ -91,7 +91,6 @@ where
         unsafe {
             // clean
             // check, all task done
-            self.list_core.submit_packet();
             loop {
                 if self.list_core.in_task.load(Ordering::Acquire)
                     <= self.done_task.load(Ordering::Acquire)
@@ -106,19 +105,6 @@ where
             for join_handle in self.pool {
                 join_handle.join().unwrap();
             }
-
-            // clean packet
-            let packet_list_ptr = self
-                .list_core
-                .packet_core
-                .packet_list
-                .swap(null_mut(), Ordering::Acquire);
-            for packet in &*packet_list_ptr {
-                drop(Box::from_raw(
-                    packet.done_counter as *const AtomicUsize as *mut AtomicUsize,
-                ));
-            }
-            drop(Box::from_raw(packet_list_ptr));
         }
     }
 }

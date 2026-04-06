@@ -141,8 +141,6 @@ where
                     .schedule) = Some(waiting_task);
 
                 packet.empty.store(false, Ordering::Release);
-            } else {
-                panic!("")
             }
 
             quota.push((
