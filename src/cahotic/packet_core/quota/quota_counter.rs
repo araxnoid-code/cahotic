@@ -1,8 +1,7 @@
 use std::{
     array,
     ops::Deref,
-    ptr::null_mut,
-    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
+    sync::atomic::{AtomicPtr, AtomicUsize},
 };
 
 use crate::OutputTrait;
