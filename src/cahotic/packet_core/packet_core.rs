@@ -1,17 +1,15 @@
 use std::{
     array,
-    hint::spin_loop,
-    ptr::null_mut,
     sync::{
         Arc,
-        atomic::{AtomicPtr, AtomicU32, AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicPtr, AtomicU64, AtomicUsize},
     },
     u64,
 };
 
 use crate::{
-    ExecTask, HeadRingBuffer, OutputTrait, Packet, PollWaiting, QuotaCounter, ScheduleSlot,
-    SchedulerTrait, TailRingBuffer, TaskTrait, WaitingTask,
+    HeadRingBuffer, OutputTrait, Packet, QuotaCounter, ScheduleSlot, SchedulerTrait,
+    TailRingBuffer, TaskTrait,
 };
 
 pub struct PacketCore<F, FS, O, const PN: usize>
@@ -24,21 +22,20 @@ where
     pub(crate) in_task: Arc<AtomicU64>,
 
     // // schedule
-    pub schedule_list: AtomicPtr<[ScheduleSlot<F, FS, O>; 64]>,
+    pub(crate) schedule_list: AtomicPtr<[ScheduleSlot<F, FS, O>; 64]>,
     //
-    pub drop_bitmap: AtomicU64,
-    pub allo_schedule_bitmap: AtomicU64,
-    pub poll_schedule_bitmap: AtomicU64,
+    pub(crate) drop_bitmap: AtomicU64,
+    pub(crate) allo_schedule_bitmap: AtomicU64,
+    pub(crate) poll_schedule_bitmap: AtomicU64,
     //
     // update
-    pub ring_buffer: AtomicPtr<Vec<Packet<F, FS, O, PN>>>,
-    pub head: HeadRingBuffer,
-    pub tail: TailRingBuffer,
+    pub(crate) ring_buffer: AtomicPtr<Vec<Packet<F, FS, O, PN>>>,
+    pub(crate) head: HeadRingBuffer,
+    pub(crate) tail: TailRingBuffer,
     // drop
-    pub quota_bitmap: AtomicU64,
-    pub use_quota: AtomicUsize,
-    pub quota_list: AtomicPtr<[QuotaCounter<O>; 64]>,
-    // update
+    pub(crate) quota_bitmap: AtomicU64,
+    pub(crate) use_quota: AtomicUsize,
+    pub(crate) quota_list: AtomicPtr<[QuotaCounter<O>; 64]>,
 }
 
 impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>

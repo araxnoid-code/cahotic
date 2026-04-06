@@ -1,8 +1,4 @@
-use std::{
-    array,
-    ops::Deref,
-    sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize},
-};
+use std::{ops::Deref, sync::atomic::AtomicBool};
 
 use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
@@ -13,23 +9,9 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    // id
     pub(crate) _id: usize,
-    //
-    pub(crate) task_list: [Option<WaitingTask<F, FS, O>>; PN],
-    pub(crate) drop_list: [Option<(
-        &'static AtomicPtr<O>,
-        Option<&'static AtomicUsize>,
-        Option<&'static AtomicUsize>,
-    )>; PN],
-    pub(crate) tail: AtomicUsize,
-    pub(crate) head: AtomicUsize,
-    pub(crate) done_counter: &'static AtomicUsize,
-    // update
     pub(crate) empty: PacketEmptyStatus,
     pub(crate) task: Option<WaitingTask<F, FS, O>>,
-    pub(crate) drop: Option<&'static AtomicPtr<O>>,
-    // update
 }
 
 #[repr(align(64))]
@@ -59,19 +41,10 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub fn init(id: usize) -> Packet<F, FS, O, PN> {
-        let task = array::from_fn(|_| None);
-        let drop = array::from_fn(|_| None);
-
         Self {
             _id: id,
-            task_list: task,
-            drop_list: drop,
-            head: AtomicUsize::new(0),
-            tail: AtomicUsize::new(0),
-            done_counter: Box::leak(Box::new(AtomicUsize::new(0))),
             empty: PacketEmptyStatus::default(),
             task: None,
-            drop: None,
         }
     }
 }

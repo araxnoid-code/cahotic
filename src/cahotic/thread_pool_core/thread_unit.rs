@@ -25,9 +25,6 @@ where
     pub(crate) task_core: Arc<PacketCore<F, FS, O, PN>>,
 
     // packet
-    // // packet
-    pub(crate) use_packet_idx: usize,
-    pub(crate) masking_packet_idx: usize,
     // // drop-packet
     pub(crate) drop_counter: usize,
     pub(crate) use_drop_idx: usize,

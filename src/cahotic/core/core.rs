@@ -11,7 +11,7 @@ where
     O: 'static + OutputTrait + Send,
 {
     // task Core
-    pub task_core: Arc<PacketCore<F, FS, O, PN>>,
+    packet_core: Arc<PacketCore<F, FS, O, PN>>,
 
     // thread pool Core
     thread_pool_core: ThreadPoolCore<F, FS, O, N, PN>,
@@ -27,27 +27,27 @@ where
         let list_core = Arc::new(PacketCore::<F, FS, O, PN>::init());
         let thread_pool_core = ThreadPoolCore::<F, FS, O, N, PN>::init(list_core.clone());
         Self {
-            task_core: list_core,
+            packet_core: list_core,
             thread_pool_core,
         }
     }
 
     // spawn task
     pub fn spawn_task(&self, f: F) -> PollWaiting<O> {
-        self.task_core.spawn_task(f)
+        self.packet_core.spawn_task(f)
     }
 
     // scheduling
     pub fn schedule_exec(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
-        self.task_core.schedule_exec(schedule)
+        self.packet_core.schedule_exec(schedule)
     }
 
     pub fn scheduling_create_initial(&self, task: F) -> Schedule<F, FS, O> {
-        self.task_core.scheduling_create_initial(task)
+        self.packet_core.scheduling_create_initial(task)
     }
 
     pub fn scheduling_create_schedule(&self, schedule: FS) -> Schedule<F, FS, O> {
-        self.task_core.scheduling_create_schedule(schedule)
+        self.packet_core.scheduling_create_schedule(schedule)
     }
 
     pub fn schedule_after(
@@ -55,7 +55,7 @@ where
         schedule: &mut Schedule<F, FS, O>,
         after: &mut Schedule<F, FS, O>,
     ) -> Result<(), &str> {
-        self.task_core.schedule_after(schedule, after)
+        self.packet_core.schedule_after(schedule, after)
     }
 
     // end

@@ -36,7 +36,7 @@ fn main() {
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 10, 16>::init();
 
     for i in 0..63 {
-        cahotic.spawn_task_update(MyTask::Task(|| MyOutput::None));
+        cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
     }
 
     let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
@@ -62,9 +62,9 @@ fn main() {
     }));
     cahotic.schedule_after(&mut poll3, &mut poll2).unwrap();
 
-    cahotic.schedule_exec_update(poll1);
-    cahotic.schedule_exec_update(poll2);
-    cahotic.schedule_exec_update(poll3);
+    cahotic.schedule_exec(poll1);
+    cahotic.schedule_exec(poll2);
+    cahotic.schedule_exec(poll3);
 
     // println!("{:?}", poll1.block());
 

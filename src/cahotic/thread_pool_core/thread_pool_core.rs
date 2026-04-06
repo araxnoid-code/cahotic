@@ -1,10 +1,9 @@
 use std::{
     array,
     hint::spin_loop,
-    ptr::null_mut,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     thread::{JoinHandle, spawn},
 };
@@ -57,8 +56,6 @@ where
                     done_task: done_task_clone,
                     join_flag: join_flag_clone,
                     task_core: list_core_clone,
-                    use_packet_idx: 64,
-                    masking_packet_idx: 64,
                     use_drop_idx: 64,
                     masking_drop_idx: 64,
                     drop_counter: 0,
@@ -88,23 +85,23 @@ where
     }
 
     pub fn join(self) {
-        unsafe {
-            // clean
-            // check, all task done
-            loop {
-                if self.list_core.in_task.load(Ordering::Acquire)
-                    <= self.done_task.load(Ordering::Acquire)
-                {
-                    break;
-                }
-                spin_loop();
+        // unsafe {
+        // clean
+        // check, all task done
+        loop {
+            if self.list_core.in_task.load(Ordering::Acquire)
+                <= self.done_task.load(Ordering::Acquire)
+            {
+                break;
             }
-
-            // join
-            self.join_flag.store(true, Ordering::Release);
-            for join_handle in self.pool {
-                join_handle.join().unwrap();
-            }
+            spin_loop();
         }
+
+        // join
+        self.join_flag.store(true, Ordering::Release);
+        for join_handle in self.pool {
+            join_handle.join().unwrap();
+        }
+        // }
     }
 }
