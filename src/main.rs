@@ -87,13 +87,6 @@ fn main() {
     // user	0m6.309s
     // sys	0m0.035s
 
-    // for i in 0..4096 * 2 {
-    //     cahotic.spawn_task(MyTask::Task(|| {
-    //         sleep(Duration::from_millis(100));
-    //         MyOutput::None
-    //     }));
-    // }
-
     // version/0.1.0
     // real	0m6.323s
     // user	0m6.318s
