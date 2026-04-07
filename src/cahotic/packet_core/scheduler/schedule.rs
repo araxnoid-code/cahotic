@@ -42,7 +42,7 @@ where
     pub(crate) candidate_packet_vec: Option<Vec<&'static AtomicUsize>>,
 }
 
-impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
+impl<F, FS, O> PacketCore<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,

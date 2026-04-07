@@ -2,14 +2,14 @@ use std::sync::atomic::Ordering;
 
 use crate::{OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
 
-impl<F, FD, O, const PN: usize> ThreadUnit<F, FD, O, PN>
+impl<F, FD, O> ThreadUnit<F, FD, O>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn get_idx_drop(&mut self) {
-        let mut bitmap = self.task_core.drop_bitmap.load(Ordering::Acquire);
+        let mut bitmap = self.packet_core.drop_bitmap.load(Ordering::Acquire);
 
         let masking = self.masking_drop_idx;
         if masking != 64 {
@@ -34,19 +34,19 @@ where
             self.break_counter = 0;
             let masking = 1_u64 << drop_idx;
             let bitmap = self
-                .task_core
+                .packet_core
                 .drop_bitmap
                 .fetch_and(!masking, Ordering::Release);
             if (bitmap & masking) != 0 {
                 unsafe {
-                    let quota =
-                        &mut (&mut (*self.task_core.quota_list.load(Ordering::Relaxed)))[drop_idx];
+                    let quota = &mut (&mut (*self.packet_core.quota_list.load(Ordering::Relaxed)))
+                        [drop_idx];
 
                     quota.free();
                 }
 
                 self.done_task.fetch_add(1, Ordering::Relaxed);
-                self.task_core
+                self.packet_core
                     .quota_bitmap
                     .fetch_or(1_u64 << drop_idx, Ordering::Release);
             }

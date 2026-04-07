@@ -12,7 +12,7 @@ use crate::{
     TailRingBuffer, TaskTrait,
 };
 
-pub struct PacketCore<F, FS, O, const PN: usize>
+pub struct PacketCore<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
@@ -29,7 +29,7 @@ where
     pub(crate) poll_schedule_bitmap: AtomicU64,
     //
     // update
-    pub(crate) ring_buffer: AtomicPtr<Vec<Packet<F, FS, O, PN>>>,
+    pub(crate) ring_buffer: AtomicPtr<Vec<Packet<F, FS, O>>>,
     pub(crate) head: HeadRingBuffer,
     pub(crate) tail: TailRingBuffer,
     // drop
@@ -38,13 +38,13 @@ where
     pub(crate) quota_list: AtomicPtr<[QuotaCounter<O>; 64]>,
 }
 
-impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
+impl<F, FS, O> PacketCore<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn init() -> PacketCore<F, FS, O, PN> {
+    pub fn init() -> PacketCore<F, FS, O> {
         Self {
             // handler
             in_task: Arc::new(AtomicU64::new(0)),

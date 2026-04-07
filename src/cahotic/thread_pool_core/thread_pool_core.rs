@@ -11,7 +11,7 @@ use std::{
 
 use crate::{OutputTrait, PacketCore, SchedulerTrait, TaskTrait, ThreadUnit};
 
-pub struct ThreadPoolCore<F, FD, O, const N: usize, const PN: usize>
+pub struct ThreadPoolCore<F, FD, O, const N: usize>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: SchedulerTrait<O> + Send + 'static,
@@ -25,16 +25,16 @@ where
     pub(crate) join_flag: Arc<AtomicBool>,
 
     // list core
-    task_core: Arc<PacketCore<F, FD, O, PN>>,
+    task_core: Arc<PacketCore<F, FD, O>>,
 }
 
-impl<F, FD, O, const N: usize, const PN: usize> ThreadPoolCore<F, FD, O, N, PN>
+impl<F, FD, O, const N: usize> ThreadPoolCore<F, FD, O, N>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
     FD: SchedulerTrait<O> + Send + 'static + Sync,
     O: OutputTrait + Send + Sync,
 {
-    pub fn init(list_core: Arc<PacketCore<F, FD, O, PN>>) -> ThreadPoolCore<F, FD, O, N, PN> {
+    pub fn init(list_core: Arc<PacketCore<F, FD, O>>) -> ThreadPoolCore<F, FD, O, N> {
         // handler
         let join_flag = Arc::new(AtomicBool::new(false));
         let done_task = Arc::new(AtomicU64::new(0));
@@ -56,7 +56,7 @@ where
                     break_counter: 0,
                     done_task: done_task_clone,
                     join_flag: join_flag_clone,
-                    task_core: list_core_clone,
+                    packet_core: list_core_clone,
                     use_drop_idx: 64,
                     masking_drop_idx: 64,
                     drop_counter: 0,
@@ -113,6 +113,7 @@ where
             );
 
             quota_list[quota_idx].free();
+            drop(quota_list);
         }
     }
 }

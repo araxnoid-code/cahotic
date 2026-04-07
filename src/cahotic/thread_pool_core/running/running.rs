@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use crate::{DequeueStatus, ExecTask, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
 
-impl<F, FD, O, const PN: usize> ThreadUnit<F, FD, O, PN>
+impl<F, FD, O> ThreadUnit<F, FD, O>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: SchedulerTrait<O> + Send + 'static,
@@ -22,7 +22,7 @@ where
 
             let order_idx = self.order;
             let task = if order_idx != 4096 {
-                let order = self.task_core.check_order(order_idx);
+                let order = self.packet_core.check_order(order_idx);
                 if let DequeueStatus::Ok(task) = order {
                     self.order = 4096;
                     task
@@ -32,7 +32,7 @@ where
                     continue;
                 }
             } else {
-                let tail = self.task_core.dequeue();
+                let tail = self.packet_core.dequeue();
                 if let DequeueStatus::Ok(task) = tail {
                     task
                 } else if let DequeueStatus::Waiting(order) = tail {
@@ -53,7 +53,7 @@ where
                     let counter = counter.fetch_sub(1, Ordering::Release);
                     if counter == 1 {
                         let masking = 1_u64 << schedule_idx;
-                        self.task_core
+                        self.packet_core
                             .poll_schedule_bitmap
                             .fetch_or(masking, Ordering::Release);
                     }
@@ -62,13 +62,14 @@ where
                 // drop packet
                 unsafe {
                     let quota_idx = task.drop_handler;
-                    let quota = &(&(*self.task_core.quota_list.load(Ordering::Relaxed)))[quota_idx];
+                    let quota =
+                        &(&(*self.packet_core.quota_list.load(Ordering::Relaxed)))[quota_idx];
 
                     let done_counter = quota.fetch_sub(1, Ordering::Relaxed);
                     if done_counter != 1 {
                         self.done_task.fetch_add(1, Ordering::Relaxed);
                     } else {
-                        self.task_core
+                        self.packet_core
                             .drop_bitmap
                             .fetch_or(1_u64 << quota_idx, Ordering::Release);
                     }

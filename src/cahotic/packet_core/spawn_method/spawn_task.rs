@@ -1,6 +1,6 @@
 use crate::{OutputTrait, PacketCore, PollWaiting, SchedulerTrait, TaskTrait};
 
-impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
+impl<F, FS, O> PacketCore<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,

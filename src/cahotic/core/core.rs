@@ -4,28 +4,28 @@ use crate::{
     OutputTrait, PacketCore, PollWaiting, Schedule, SchedulerTrait, TaskTrait, ThreadPoolCore,
 };
 
-pub struct Cahotic<F, FS, O, const N: usize, const PN: usize>
+pub struct Cahotic<F, FS, O, const N: usize>
 where
     F: TaskTrait<O> + 'static + Send,
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     // task Core
-    packet_core: Arc<PacketCore<F, FS, O, PN>>,
+    packet_core: Arc<PacketCore<F, FS, O>>,
 
     // thread pool Core
-    thread_pool_core: ThreadPoolCore<F, FS, O, N, PN>,
+    thread_pool_core: ThreadPoolCore<F, FS, O, N>,
 }
 
-impl<F, FS, O, const N: usize, const PN: usize> Cahotic<F, FS, O, N, PN>
+impl<F, FS, O, const N: usize> Cahotic<F, FS, O, N>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
     FS: SchedulerTrait<O> + Send + 'static + Sync,
     O: 'static + OutputTrait + Send + Sync,
 {
-    pub fn init() -> Cahotic<F, FS, O, N, PN> {
-        let list_core = Arc::new(PacketCore::<F, FS, O, PN>::init());
-        let thread_pool_core = ThreadPoolCore::<F, FS, O, N, PN>::init(list_core.clone());
+    pub fn init() -> Cahotic<F, FS, O, N> {
+        let list_core = Arc::new(PacketCore::<F, FS, O>::init());
+        let thread_pool_core = ThreadPoolCore::<F, FS, O, N>::init(list_core.clone());
         Self {
             packet_core: list_core,
             thread_pool_core,

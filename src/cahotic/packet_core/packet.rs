@@ -3,7 +3,7 @@ use std::{ops::Deref, sync::atomic::AtomicBool};
 use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
 #[repr(align(64))]
-pub struct Packet<F, FS, O, const PN: usize>
+pub struct Packet<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
@@ -34,13 +34,13 @@ impl Deref for PacketEmptyStatus {
     }
 }
 
-impl<F, FS, O, const PN: usize> Packet<F, FS, O, PN>
+impl<F, FS, O> Packet<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn init(id: usize) -> Packet<F, FS, O, PN> {
+    pub fn init(id: usize) -> Packet<F, FS, O> {
         Self {
             _id: id,
             empty: PacketEmptyStatus::default(),
