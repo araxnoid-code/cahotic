@@ -1,4 +1,9 @@
-use std::sync::atomic::Ordering;
+use std::{
+    hint::spin_loop,
+    sync::atomic::Ordering,
+    thread::{park_timeout, yield_now},
+    time::Duration,
+};
 
 use crate::{DequeueStatus, ExecTask, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
 
@@ -25,55 +30,68 @@ where
                 let order = self.packet_core.check_order(order_idx);
                 if let DequeueStatus::Ok(task) = order {
                     self.order = 4096;
-                    task
+                    Some(task)
                 } else if let DequeueStatus::Waiting(_) = order {
-                    continue;
+                    None
                 } else {
-                    continue;
+                    None
                 }
             } else {
                 let tail = self.packet_core.dequeue();
                 if let DequeueStatus::Ok(task) = tail {
-                    task
+                    Some(task)
                 } else if let DequeueStatus::Waiting(order) = tail {
                     self.order = order;
-                    continue;
+                    None
                 } else {
-                    continue;
+                    None
                 }
             };
 
-            if let ExecTask::Task(f) = task.task {
-                let output = Box::into_raw(Box::new(f.execute()));
-                task.return_ptr.unwrap().store(output, Ordering::Release);
+            if let Some(task) = task {
+                self.break_counter = 0;
+                if let ExecTask::Task(f) = task.task {
+                    let output = Box::into_raw(Box::new(f.execute()));
+                    task.return_ptr.unwrap().store(output, Ordering::Release);
 
-                // update child
-                let poll_child = task.poll_child;
-                for (counter, schedule_idx) in poll_child {
-                    let counter = counter.fetch_sub(1, Ordering::Release);
-                    if counter == 1 {
-                        let masking = 1_u64 << schedule_idx;
-                        self.packet_core
-                            .poll_schedule_bitmap
-                            .fetch_or(masking, Ordering::Release);
+                    // update child
+                    let poll_child = task.poll_child;
+                    for (counter, schedule_idx) in poll_child {
+                        let counter = counter.fetch_sub(1, Ordering::Release);
+                        if counter == 1 {
+                            let masking = 1_u64 << schedule_idx;
+                            self.packet_core
+                                .poll_schedule_bitmap
+                                .fetch_or(masking, Ordering::Release);
+                        }
+                    }
+
+                    // drop packet
+                    unsafe {
+                        let quota_idx = task.drop_handler;
+                        let quota =
+                            &(&(*self.packet_core.quota_list.load(Ordering::Relaxed)))[quota_idx];
+
+                        let done_counter = quota.fetch_sub(1, Ordering::Relaxed);
+                        if done_counter != 1 {
+                            self.done_task.fetch_add(1, Ordering::Relaxed);
+                        } else {
+                            self.packet_core
+                                .drop_bitmap
+                                .fetch_or(1_u64 << quota_idx, Ordering::Release);
+                        }
                     }
                 }
-
-                // drop packet
-                unsafe {
-                    let quota_idx = task.drop_handler;
-                    let quota =
-                        &(&(*self.packet_core.quota_list.load(Ordering::Relaxed)))[quota_idx];
-
-                    let done_counter = quota.fetch_sub(1, Ordering::Relaxed);
-                    if done_counter != 1 {
-                        self.done_task.fetch_add(1, Ordering::Relaxed);
-                    } else {
-                        self.packet_core
-                            .drop_bitmap
-                            .fetch_or(1_u64 << quota_idx, Ordering::Release);
-                    }
+            } else {
+                if self.break_counter < 100 {
+                    spin_loop();
+                } else if self.break_counter < 1000 {
+                    yield_now();
+                } else {
+                    park_timeout(Duration::from_millis(10));
+                    self.break_counter = 0;
                 }
+                self.break_counter += 1;
             }
         }
     }
