@@ -1,23 +1,23 @@
 # Version/0.2.0
-- opening: mekanisme packet yang digunakan `Cahotic` pada version/0.1.0 tidak memiliki nilai praktis yang tinggi saat praktek. ini dikarenakan, walaupun memiliki 64 packet dengan size masing masing packet adalah 64 yang totalnya dapat menampung 4096 task namun sering di dapatkan packet di submit dalam keadaan yang tidak penuh. Ini menyebabkan nilai praktis menurun dengan significan hingga ke titik `Cahotic` hanya dapat menampung 64 task saja di dalam kasus setiap packet hanya berisi 1 task, jika ada packet yang kosong ini akan lebih buruk. oleh karena itu dengan masalah yang menyebabkan pnurunan peforma yang signifikan ini, maka di putuskan `Cahotic` akan menggangti konsep ini.
+- opening: The packet mechanism used by `Cahotic` in version/0.1.0 does not have much practical value in practice. This is because, even though it has 64 packets with each packet size being 64, which in total can accommodate 4096 tasks, it is often found that packets are submitted in a state that is not full. This causes performance to decrease significantly to the point where `Cahotic` can only accommodate 64 tasks in the case that each packet only contains 1 task, if there are empty packets this will be even worse. Therefore, due to the problems that caused this sharp decline in performance, it was decided that `Cahotic` would replace this concept.
 
-- mengganti konsep packet(submit setiap batch) dengan konsep ring buffer dengan mekanisme antrian FIFO dalam manajemen spawn task pada `Cahotic`. mekanisme scheduling masih menggunakan konsep dulu yaitu packet(batch).
+- replacing the packet (submit every batch) concept with a ring-buffer concept with a FIFO queue mechanism in spawn task management on `Cahotic`. The scheduling mechanism still uses the old concept, namely packet (batch).
 
-- Ukuran ring-buffer secara default saat ini adalah 4096
+- The current default ring-buffer size is 4096, spawning a task when the ring-buffer is still full will cause blocking on the main thread.
 
-- menambahkan konsep quota, setiap task yang telah dibuat akan mendapakan quota serta value return task juga akan di simpan ke dalam quota yang didapatkan. untuk setiap 64 task maka akan mendapatkan quota yang sama, di dalam quota akan memiliki counter yang akan dikurangi oleh task yang telah selesai di eksekusi di saat counter menjadi 0, maka drop-bitmap diupdate berdasarkan index dari quota tersebut.
+- adding the concept of quota, each task that has been created will get a quota and the task return value will also be saved into the quota obtained. for every 64 tasks you will get the same quota, Inside the quota there will be a counter that will be reduced by the task that has finished executing when the counter becomes 0, then the drop-bitmap is updated based on the index of the quota.
 
-- secara default setiap quota dapat dimiliki oleh 64 task
+- By default, each quota can be owned by 64 tasks..
 
-- menghilangkan method yang berhubungan dengan konsep packet saat membuat task dan initial schedule, diantaranya adalah:
+- eliminate methods related to the packet concept when creating tasks and initial schedules, including:
   - ready-bitmap
   - empty-bitmap
   - packet-list
   - drop-list
 
-- menghilangkan task-core, packet-core akan mengambil tugas task-core(task-core berguna saat version/0.0.1 yang masih menggunakan konsep linked list, saat penggunaan konsep packet, task-core mulai tidak diperlukan dan hanya sebagai wrapper saja, karena itu dihilangkan).
+- remove task-core, packet-core will take over the task-core (task-core was useful when version/0.0.1 still used the linked list concept, when using the packet concept, task-core started to be unnecessary and was only a wrapper, therefore it was removed).
 
-perbandingan code versi version/0.1.0 dan version/0.2.0
+comparison of code versions version/0.1.0 and version/0.2.0
 version/0.1.0
 ```rust
 fn main() {
@@ -38,7 +38,7 @@ fn main() {
 version/0.2.0
 ```rust
 fn main() {
-    // tidak diperlukan lagi initialisasi size untuk packet
+    // no longer required size initialization for package
     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 
     cahotic.spawn_task(MyTask::Task(|| {
@@ -47,8 +47,7 @@ fn main() {
         MyOutput::None
     }));
     
-    // tidak diperlukan lagi mekanisme submit
-
+    // no longer required submit mechanism
     cahotic.join();
 }
 ```

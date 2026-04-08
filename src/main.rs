@@ -1,7 +1,6 @@
 use std::{thread::sleep, time::Duration};
 
 use cahotic::{Cahotic, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 enum MyOutput {
     Result(i32),
@@ -56,23 +55,6 @@ fn main() {
     // real	0m10.181s
     // user	2m33.048s
     // sys	0m0.020s
-
-    // (0..100).into_par_iter().for_each(|_| {
-    //     fib_recursive(42);
-    // });
-
-    // rayon
-    // real	0m10.317s
-    // user	2m30.411s
-    // sys	0m0.008s
-
-    // real	0m10.185s
-    // user	2m30.721s
-    // sys	0m0.020s
-
-    // real	0m10.226s
-    // user	2m31.113s
-    // sys	0m0.031s
 }
 
 fn fib_recursive(n: u64) -> u64 {
