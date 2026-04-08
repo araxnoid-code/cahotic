@@ -27,12 +27,9 @@ where
 
             let order_idx = self.order;
             let task = if order_idx != 4096 {
-                let order = self.packet_core.check_order(order_idx);
-                if let DequeueStatus::Ok(task) = order {
+                if let DequeueStatus::Ok(task) = self.packet_core.check_order(order_idx) {
                     self.order = 4096;
                     Some(task)
-                } else if let DequeueStatus::Waiting(_) = order {
-                    None
                 } else {
                     None
                 }
@@ -88,6 +85,7 @@ where
                 } else if self.break_counter < 1000 {
                     yield_now();
                 } else {
+                    // println!("thread {} take break", self._id);
                     park_timeout(Duration::from_millis(10));
                     self.break_counter = 0;
                 }
