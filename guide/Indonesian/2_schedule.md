@@ -36,7 +36,7 @@ impl SchedulerTrait<MyOutput> for MyTask {
 }
 
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 
     // Scheduling 
     let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
@@ -54,8 +54,6 @@ fn main() {
 
     cahotic.schedule_exec(poll2);
     cahotic.schedule_exec(poll1);
-
-    cahotic.submit_packet();
 
     cahotic.join();
 }
@@ -101,7 +99,7 @@ oleh karena itu aturan pertama dari scheduling pada `cahotic`:
 setiap relasi yang tercipta pada task harus mengikuti konsep `DAG`, yaitu tidak boleh adanya siklus di dalam graf tersebut.
 ```rust
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 
     let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
         sleep(Duration::from_millis(1000));
@@ -129,8 +127,6 @@ fn main() {
     cahotic.schedule_exec(poll2);
     cahotic.schedule_exec(poll1);
 
-    cahotic.submit_packet();
-
     cahotic.join();
 }
 ```
@@ -151,8 +147,6 @@ pada code di bawah ini
 cahotic.schedule_exec(poll3);
 cahotic.schedule_exec(poll2);
 cahotic.schedule_exec(poll1);
-
-cahotic.submit_packet();
 
 cahotic.join();
 ```
@@ -181,7 +175,7 @@ impl SchedulerTrait<MyOutput> for MyTask {
 terdapat struct `ScheduleVec<MyOutput>`, ini akan menampung semua value yang di return oleh schedule yang dipergantungkan.
 ```rust
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 
     let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
         sleep(Duration::from_millis(1000));
@@ -214,8 +208,6 @@ fn main() {
     cahotic.schedule_exec(poll3);
     cahotic.schedule_exec(poll2);
     cahotic.schedule_exec(poll1);
-
-    cahotic.submit_packet();
 
     cahotic.join();
 }
@@ -261,7 +253,7 @@ maka ini menjadi aturan ke-6.
 jika ada normal schedule yang di eksekusi tanpa adanya dependensi, maka schedule tersebut masih bisa di eksekusi namun ada cost untuk menghandle nya, lebih baik gunakan initial schedule.
 ```rust
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 
     // poll masih akan dieksekusi namun memiliki cost untuk penanganannya, gunakan initial schedule.
     let poll = cahotic.scheduling_create_schedule(MyTask::Schedule(|_| {
@@ -270,12 +262,12 @@ fn main() {
     }));
 
     cahotic.schedule_exec(poll);
-    cahotic.submit_packet();
 
     cahotic.join();
 }
 ```
 oleh karena itu, ini menjadi aturan ke-7 dan ke-8
+
 7. *setiap scheduling haruslah diawali dengan initial schedule*
 8. *hindari membuat normal shcedule yang dibuat tanpa ketergantungan*
 
