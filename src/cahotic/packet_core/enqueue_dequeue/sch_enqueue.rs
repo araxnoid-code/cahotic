@@ -8,7 +8,7 @@ use crate::{
     TaskTrait, WaitingTask,
 };
 
-impl<F, FS, O, const PN: usize> PacketCore<F, FS, O, PN>
+impl<F, FS, O> PacketCore<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
@@ -57,6 +57,8 @@ where
                 schedule.shcedule_vec,
                 schedule.candidate_packet_vec,
             ) {
+                let execute_directly = schedule_vec.len() == 0;
+
                 let waiting_task = WaitingTask {
                     drop_handler: quota_idx,
                     _id: head,
@@ -74,6 +76,11 @@ where
                     .schedule) = Some(waiting_task);
 
                 packet.empty.store(false, Ordering::Release);
+
+                if execute_directly == true {
+                    self.poll_schedule_bitmap
+                        .fetch_or(1_u64 << allocated_idx, Ordering::Release);
+                }
             }
 
             quota.push((

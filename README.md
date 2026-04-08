@@ -3,7 +3,7 @@
     <b><p>Thread Pool Management</p></b>
     <p>⚙️ under development ⚙️</p>
     <b>
-        <p>Version / 0.1.0</p>
+        <p>Version / 0.2.0</p>
     </b>
 </div>
 
@@ -11,10 +11,10 @@
 `cahotic`, thread pool management written in rust.
 
 ## Vesrion
-what's new with: [version/0.1.0](https://github.com/araxnoid-code/cahotic/blob/version/0.1.0/version.md)
+what's new with: [version/0.2.0](https://github.com/araxnoid-code/cahotic/blob/version/0.2.0/version.md)
 
 ## Guide 
-explanation of main features (English and Indonesian available): [guide.md](https://github.com/araxnoid-code/cahotic/blob/version/0.1.0/guide/guide.md)
+explanation of main features (English and Indonesian available): [guide.md](https://github.com/araxnoid-code/cahotic/blob/version/0.2.0/guide/guide.md)
 
 ## Starting
 ### Installation
@@ -24,7 +24,7 @@ cargo add cahotic
 ```
 Or add the following line to your Cargo.toml:
 ```toml
-cahotic = "0.1.0"
+cahotic = "0.2.0"
 ```
 
 ### Code
@@ -63,15 +63,13 @@ impl SchedulerTrait<MyOutput> for MyTask {
 }
 
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 4>::init();
 
     cahotic.spawn_task(MyTask::Task(|| {
         sleep(Duration::from_millis(1000));
         println!("done!");
         MyOutput::None
     }));
-
-    cahotic.submit_packet();
 
     cahotic.join();
 }

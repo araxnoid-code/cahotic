@@ -35,15 +35,13 @@ impl SchedulerTrait<MyOutput> for MyTask {
 }
 
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 
     cahotic.spawn_task(MyTask::Task(|| {
         sleep(Duration::from_millis(1000));
         println!("done!");
         MyOutput::None
     }));
-
-    cahotic.submit_packet();
 
     cahotic.join();
 }
@@ -87,7 +85,7 @@ Untuk spawn task di `cahotic`, `cahotic` hanya dapat menerima tipe data yang men
 
 ```rust
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 
     cahotic.spawn_task(MyTask::Task(|| {
         sleep(Duration::from_millis(1000));
@@ -95,29 +93,24 @@ fn main() {
         MyOutput::None
     }));
 
-    cahotic.submit_packet();
-
     cahotic.join();
 }
 ```
-Saat menginisialisasi `cahotic`, diperlukan anotasi tipe eksplisit.
+Saat menginisialisasi `cahotic`, diperlukan anotasi tipe.
 ```rust
-let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 ```
 Struktur generik pada `cahotic` secara singkat:
 ```
-Cahotic::<F, FS, O, N, PN>::init();
+Cahotic::<F, FS, O, N>::init();
 Cahotic generic parameters:
 - F: Tipe yang mengimplementasikan TaskTrait (untuk task reguler)
 - FS: Tipe yang mengimplementasikan SchedulerTrait (untuk task terjadwal dengan dependensi)
 - O: Tipe yang mengimplementasikan OutputTrait (nilai kembalian dari tugas)
 - N: Jumlah thread pekerja (const generic)
-- PN: Kapasitas paket — jumlah tugas maksimum per paket (const generic)
 
 note: F dan FS bisa memiliki tipe yang sama (seperti pada contoh).
 ```
-*apa itu `packet`?*
-task pada `cahotic` dikelompokkan menjadi beberapa batch yang disebut `packet` (standar 64 paket, masing-masing dengan kapasitas PN). `packet` akan dijelaskan secara detail di bagian selanjutnya.
 
 ```rust
 cahotic.spawn_task(MyTask::Task(|| {
@@ -126,13 +119,10 @@ cahotic.spawn_task(MyTask::Task(|| {
     MyOutput::None
 }));
 ```
-Pada kode di atas, menggunakan metode `Cahotic::spawn_task(&self, F)`, di mana `F` adalah tipe data yang mengimplementasikan `TaskTrait`. Tugas akan tidur selama 1 detik, kemudian mencetak "done!" dan mengembalikan `MyOutput::None` (ingat konsep `OutputTrait` di atas). Metode `Cahotic::spawn_task(&self, F)` ini akan mengembalikan `PollWaiting`.
+Pada kode di atas, menggunakan method `Cahotic::spawn_task(&self, F)`, di mana `F` adalah tipe data yang mengimplementasikan `TaskTrait`. Tugas akan tidur selama 1 detik, kemudian mencetak "done!" dan mengembalikan `MyOutput::None` (ingat konsep `OutputTrait` di atas). method `Cahotic::spawn_task(&self, F)` ini akan mengembalikan `PollWaiting`.
 
-```rust
-cahotic.submit_packet();
-```
-Task yang dibuat sebenarnya belum dikirim ke thread pool, tetapi masih menunggu di area penyimpanan yang disebut `packet`. Dengan menggunakan metode `Cahotic::submit_packet(&self)`, paket akan dikirim ke thread pool dan thread akan mulai mengeksekusinya.
 
+sebagai akhir dari `Cahotic`, gunakan:
 ```rust
 cahotic.join();
 ```
@@ -151,14 +141,13 @@ enum MyOutput {
 Untuk dapat mengambil nilai dari polling, Anda dapat menggunakan 2 metode yang disediakan.
 ```rust
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 
     let poll = cahotic.spawn_task(MyTask::Task(|| {
         sleep(Duration::from_millis(1000));
         println!("done!");
         MyOutput::Result(10)
     }));
-    cahotic.submit_packet();
 
     // Akan ada pemblokiran pada thread utama hingga polling selesai
     let value = poll.block();
@@ -170,14 +159,13 @@ fn main() {
 or use
 ```rust
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 
     let poll = cahotic.spawn_task(MyTask::Task(|| {
         sleep(Duration::from_millis(1000));
         println!("done!");
         MyOutput::Result(10)
     }));
-    cahotic.submit_packet();
 
     // Tidak akan terjadi pemblokiran, tetapi jika polling belum siap, maka akan mengembalikan Option::None
     let value = poll.get();
