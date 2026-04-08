@@ -1,1 +1,49 @@
-fn main() {}
+use std::{thread::sleep, time::Duration};
+
+use cahotic::{Cahotic, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait};
+
+#[derive(Debug)]
+enum MyOutput {
+    Result(i32),
+    None,
+}
+impl OutputTrait for MyOutput {}
+
+enum MyTask {
+    Task(fn() -> MyOutput),
+    Schedule(fn(scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput),
+}
+
+impl TaskTrait<MyOutput> for MyTask {
+    fn execute(&self) -> MyOutput {
+        match self {
+            MyTask::Task(f) => f(),
+            MyTask::Schedule(_) => MyOutput::None,
+        }
+    }
+}
+
+impl SchedulerTrait<MyOutput> for MyTask {
+    fn execute(&self, scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput {
+        match self {
+            MyTask::Task(_) => MyOutput::None,
+            MyTask::Schedule(f) => f(scheduler_vec),
+        }
+    }
+}
+
+fn main() {
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
+
+    let poll = cahotic.spawn_task(MyTask::Task(|| {
+        sleep(Duration::from_millis(1000));
+        println!("done!");
+        MyOutput::Result(10)
+    }));
+
+    // Tidak akan terjadi pemblokiran, tetapi jika polling belum siap, maka akan mengembalikan Option::None
+    let value = poll.get();
+    println!("{:?}", value);
+
+    cahotic.join();
+}
