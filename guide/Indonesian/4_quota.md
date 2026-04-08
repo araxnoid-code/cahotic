@@ -9,3 +9,5 @@ dapat dilihat pada gambar diatas, setiap task akan memiliki quotanya masing-masi
 <img width="400" src="./../img/quota_1.png">
     
 pada gambar diatas adalah mekanisme counter pada quota, setiap task yang selesai akan mengurangi counter sebanyak 1, di saat task yang menjadikan counter quota menjadi 0 maka thread yang mengeksekusi task tersebut akan mengupdate drop-bitmap seseuai dengan index dari quota tersebut, dengan diupdatenya drop-bitmap ini menandakan bahwa semua value return task akan di hapus.
+
+disaat task di spawn namun semua quota telah penuh, maka packet-core akan menunggu quota yang kosong, maka ini akan menyebabkan block pada main thread. mekanisme packet-core dapat menemukan quota yang kosong adalah melalui quota-bitmap.
