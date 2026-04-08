@@ -1,5 +1,4 @@
 use std::{
-    hint::spin_loop,
     sync::atomic::Ordering,
     thread::{park_timeout, yield_now},
     time::Duration,
@@ -80,14 +79,10 @@ where
                     }
                 }
             } else {
-                if self.break_counter < 100 {
-                    spin_loop();
-                } else if self.break_counter < 1000 {
+                if self.break_counter < 500 {
                     yield_now();
                 } else {
-                    // println!("thread {} take break", self._id);
                     park_timeout(Duration::from_millis(10));
-                    self.break_counter = 0;
                 }
                 self.break_counter += 1;
             }

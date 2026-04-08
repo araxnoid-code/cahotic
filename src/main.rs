@@ -33,29 +33,29 @@ impl SchedulerTrait<MyOutput> for MyTask {
 }
 
 fn main() {
-    // let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 16>::init();
 
-    // for i in 0..100 {
-    //     cahotic.spawn_task(MyTask::Task(|| {
-    //         fib_recursive(42);
-    //         MyOutput::None
-    //     }));
-    // }
+    for i in 0..100 {
+        cahotic.spawn_task(MyTask::Task(|| {
+            fib_recursive(42);
+            MyOutput::None
+        }));
+    }
 
-    // cahotic.join();
+    cahotic.join();
 
     // cahotic
-    // real	0m11.456s
-    // user	2m49.444s
-    // sys	0m0.306s
+    // real	0m10.183s
+    // user	2m32.825s
+    // sys	0m0.021s
 
-    // real	0m11.230s
-    // user	2m49.867s
-    // sys	0m0.245s
+    // real	0m10.320s
+    // user	2m35.528s
+    // sys	0m0.033s
 
-    // real	0m11.320s
-    // user	2m50.768s
-    // sys	0m0.243s
+    // real	0m10.181s
+    // user	2m33.048s
+    // sys	0m0.020s
 
     // (0..100).into_par_iter().for_each(|_| {
     //     fib_recursive(42);
