@@ -133,7 +133,7 @@ can be seen in this line:
 cahotic.schedule_after(&mut poll3, &mut poll2).unwrap();
 cahotic.schedule_after(&mut poll2, &mut poll3).unwrap();
 ```
-The occurrence of a cycle here causes this task to get stuck in `chaotic`.
+The occurrence of a cycle here causes this task to get stuck in `cahotic`.
 
 <img width="400" src="./../img/ERROR_DAG.png">
 

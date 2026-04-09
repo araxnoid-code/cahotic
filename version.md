@@ -15,6 +15,8 @@
   - packet-list
   - drop-list
 
+- update guide.md to reflect changes made to version/0.2.0.
+
 - remove task-core, packet-core will take over the task-core (task-core was useful when version/0.0.1 still used the linked list concept, when using the packet concept, task-core started to be unnecessary and was only a wrapper, therefore it was removed).
 
 comparison of code versions version/0.1.0 and version/0.2.0
