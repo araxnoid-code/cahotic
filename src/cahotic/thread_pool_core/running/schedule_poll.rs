@@ -42,16 +42,21 @@ where
 
             if (bitmap & masking) != 0 {
                 unsafe {
-                    let schedule_slot = (*self.packet_core.schedule_list.load(Ordering::Acquire))
-                        [sch_idx]
-                        .schedule
-                        .take();
+                    let schedule_slot =
+                        &mut ((*self.packet_core.schedule_list.load(Ordering::Acquire))[sch_idx]);
 
-                    self.packet_core
-                        .allo_schedule_bitmap
-                        .fetch_or(masking, Ordering::Release);
+                    if schedule_slot.empty.swap(true, Ordering::Relaxed) {
+                        self.packet_core
+                            .poll_schedule_bitmap
+                            .fetch_or(masking, Ordering::Release);
+                        return;
+                    }
 
-                    if let Some(schedule) = schedule_slot {
+                    if let Some(schedule) = schedule_slot.schedule.take() {
+                        self.packet_core
+                            .allo_schedule_bitmap
+                            .fetch_or(masking, Ordering::Release);
+
                         if let ExecTask::Scheduling(f, scheduler_vec, _, candidate_packet_idx) =
                             schedule.task
                         {
@@ -94,7 +99,6 @@ where
                                 let quota =
                                     &(&(*self.packet_core.quota_list.load(Ordering::Relaxed)))[idx];
                                 let done_counter = quota.fetch_sub(1, Ordering::Relaxed);
-                                // println!("scheduling finish that {}", idx);
                                 if done_counter != 1 {
                                     self.done_task.fetch_add(1, Ordering::Relaxed);
                                 } else {
@@ -104,10 +108,6 @@ where
                                 }
                             }
                         }
-                    } else {
-                        self.packet_core
-                            .poll_schedule_bitmap
-                            .fetch_or(masking, Ordering::Release);
                     }
                 }
             }

@@ -1,3 +1,5 @@
+use std::sync::atomic::AtomicBool;
+
 use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
 #[repr(align(64))]
@@ -9,7 +11,9 @@ where
 {
     // id
     pub(crate) _id: usize,
-    //
+    // status
+    pub(crate) empty: AtomicBool,
+    // schedule
     pub(crate) schedule: Option<WaitingTask<F, FS, O>>,
 }
 
@@ -22,6 +26,7 @@ where
     pub fn init(id: usize) -> ScheduleSlot<F, FS, O> {
         Self {
             _id: id,
+            empty: AtomicBool::new(true),
             schedule: None,
         }
     }

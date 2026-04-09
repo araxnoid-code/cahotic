@@ -25,7 +25,7 @@ where
     pub(crate) join_flag: Arc<AtomicBool>,
 
     // list core
-    task_core: Arc<PacketCore<F, FD, O>>,
+    packet_core: Arc<PacketCore<F, FD, O>>,
 }
 
 impl<F, FD, O, const N: usize> ThreadPoolCore<F, FD, O, N>
@@ -80,7 +80,7 @@ where
         Self {
             done_task,
             join_flag,
-            task_core: list_core,
+            packet_core: list_core,
             pool,
         }
     }
@@ -90,7 +90,7 @@ where
             // clean
             // check, all task done
             loop {
-                if self.task_core.in_task.load(Ordering::Acquire)
+                if self.packet_core.in_task.load(Ordering::Acquire)
                     <= self.done_task.load(Ordering::Acquire)
                 {
                     break;
@@ -105,15 +105,22 @@ where
             }
 
             // clean quota
-            let quota_idx = self.task_core.use_quota.load(Ordering::Relaxed);
+            let quota_idx = self.packet_core.use_quota.load(Ordering::Relaxed);
             let mut quota_list = Box::from_raw(
-                self.task_core
+                self.packet_core
                     .quota_list
                     .swap(null_mut(), Ordering::Relaxed),
             );
 
             quota_list[quota_idx].free();
             drop(quota_list);
+
+            // clean schedule_list
+            drop(Box::from_raw(
+                self.packet_core
+                    .schedule_list
+                    .swap(null_mut(), Ordering::Relaxed),
+            ));
         }
     }
 }

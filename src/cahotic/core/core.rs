@@ -11,10 +11,10 @@ where
     O: 'static + OutputTrait + Send,
 {
     // task Core
-    packet_core: Arc<PacketCore<F, FS, O>>,
+    pub(crate) packet_core: Arc<PacketCore<F, FS, O>>,
 
     // thread pool Core
-    thread_pool_core: ThreadPoolCore<F, FS, O, N>,
+    pub(crate) thread_pool_core: ThreadPoolCore<F, FS, O, N>,
 }
 
 impl<F, FS, O, const N: usize> Cahotic<F, FS, O, N>

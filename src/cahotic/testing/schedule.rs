@@ -1,284 +1,186 @@
-// use std::{thread::sleep, time::Duration};
+use std::{thread::sleep, time::Duration};
 
-// use crate::{Cahotic, OutputTrait, Schedule, ScheduleVec, SchedulerTrait, TaskTrait};
+use crate::{Cahotic, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait};
 
-// enum MyOutput {
-//     Result(i32),
-//     None,
-// }
-// impl OutputTrait for MyOutput {}
+#[derive(Debug)]
+enum MyOutput {
+    Result(i32),
+    None,
+}
+impl OutputTrait for MyOutput {}
 
-// enum MyTask {
-//     Task(fn() -> MyOutput),
-//     Schedule(fn(scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput),
-// }
+enum MyTask {
+    Task(fn() -> MyOutput),
+    Schedule(fn(scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput),
+}
 
-// impl TaskTrait<MyOutput> for MyTask {
-//     fn execute(&self) -> MyOutput {
-//         match self {
-//             MyTask::Task(f) => f(),
-//             MyTask::Schedule(_) => MyOutput::None,
-//         }
-//     }
-// }
+impl TaskTrait<MyOutput> for MyTask {
+    fn execute(&self) -> MyOutput {
+        match self {
+            MyTask::Task(f) => f(),
+            MyTask::Schedule(_) => MyOutput::None,
+        }
+    }
+}
 
-// impl SchedulerTrait<MyOutput> for MyTask {
-//     fn execute(&self, scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput {
-//         match self {
-//             MyTask::Task(_) => MyOutput::None,
-//             MyTask::Schedule(f) => f(scheduler_vec),
-//         }
-//     }
-// }
+impl SchedulerTrait<MyOutput> for MyTask {
+    fn execute(&self, scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput {
+        match self {
+            MyTask::Task(_) => MyOutput::None,
+            MyTask::Schedule(f) => f(scheduler_vec),
+        }
+    }
+}
 
-// #[test]
-// fn schedule() {
-//     let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+#[test]
+fn schedule_1() {
+    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4> = Cahotic::init();
 
-//     // testing 1
-//     let mut poll1 = Schedule::create_task(MyTask::Task(|| MyOutput::Result(10)));
-//     let mut poll2 = Schedule::create_schedule(MyTask::Schedule(|schedule_vec| {
-//         let poll1_value = schedule_vec
-//             .get(0)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+    let mut poll_1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+        sleep(Duration::from_millis(500));
+        MyOutput::Result(10)
+    }));
+    let mut poll_2 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
+        if let Some(MyOutput::Result(x)) = schedule_vec.get(0) {
+            assert_eq!(*x, 10);
+        } else {
+            panic!("Schedule Testing Error")
+        }
 
-//         if let MyOutput::None = poll1_value {
-//             panic!("Error, poll2 accesses poll1 which has a value of None")
-//         } else if let MyOutput::Result(value) = poll1_value {
-//             assert_eq!(*value, 10);
-//         }
+        MyOutput::None
+    }));
 
-//         MyOutput::None
-//     }));
+    cahotic.schedule_after(&mut poll_2, &mut poll_1).unwrap();
 
-//     poll2.after(&mut poll1).unwrap();
+    cahotic.schedule_exec(poll_2);
+    cahotic.schedule_exec(poll_1);
 
-//     cahotic.schedule_exec(poll1);
-//     cahotic.schedule_exec(poll2);
-//     cahotic.submit_packet();
+    cahotic.join();
+}
 
-//     // testing 2
-//     let mut poll1 = Schedule::create_task(MyTask::Task(|| {
-//         sleep(Duration::from_millis(1000));
-//         MyOutput::Result(20)
-//     }));
-//     let mut poll2 = Schedule::create_task(MyTask::Task(|| {
-//         sleep(Duration::from_millis(250));
-//         MyOutput::Result(30)
-//     }));
-//     let mut poll3 = Schedule::create_schedule(MyTask::Schedule(|schedule_vec| {
-//         let poll1_value = schedule_vec
-//             .get(0)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+#[test]
+fn schedule_2() {
+    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4> = Cahotic::init();
 
-//         let poll2_value = schedule_vec
-//             .get(1)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+    let poll = cahotic.scheduling_create_schedule(MyTask::Schedule(|_| MyOutput::None));
+    cahotic.schedule_exec(poll);
 
-//         if let (MyOutput::None, MyOutput::None) = (poll1_value, poll2_value) {
-//             panic!("Error, poll2 accesses poll1 or poll2 which has a value of None")
-//         } else if let (MyOutput::Result(value1), MyOutput::Result(value2)) =
-//             (poll1_value, poll2_value)
-//         {
-//             assert_eq!(*value1, 20);
-//             assert_eq!(*value2, 30);
-//         }
+    cahotic.join();
+}
 
-//         MyOutput::None
-//     }));
+#[test]
+fn schedule_3() {
+    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4> = Cahotic::init();
 
-//     poll3.after(&mut poll1).unwrap();
-//     poll3.after(&mut poll2).unwrap();
+    // Testing 1
+    for _ in 0..62 {
+        cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
+    }
 
-//     cahotic.schedule_exec(poll1);
-//     cahotic.schedule_exec(poll3);
-//     cahotic.schedule_exec(poll2);
-//     cahotic.submit_packet();
+    let mut poll_1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+        sleep(Duration::from_millis(500));
+        MyOutput::Result(10)
+    }));
 
-//     // testing 3
-//     let mut poll1 = Schedule::create_task(MyTask::Task(|| {
-//         sleep(Duration::from_millis(1000));
-//         MyOutput::Result(20)
-//     }));
-//     let mut poll2 = Schedule::create_task(MyTask::Task(|| {
-//         sleep(Duration::from_millis(250));
-//         MyOutput::Result(30)
-//     }));
-//     let mut poll3 = Schedule::create_schedule(MyTask::Schedule(|schedule_vec| {
-//         let poll1_value = schedule_vec
-//             .get(0)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+    let mut poll_2 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
+        if let Some(MyOutput::Result(x)) = schedule_vec.get(0) {
+            assert_eq!(*x, 10);
+        } else {
+            panic!("Schedule Testing Error")
+        }
 
-//         let poll2_value = schedule_vec
-//             .get(1)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+        MyOutput::None
+    }));
 
-//         if let (MyOutput::None, MyOutput::None) = (poll1_value, poll2_value) {
-//             panic!("Error, poll2 accesses poll1 or poll2 which has a value of None")
-//         } else if let (MyOutput::Result(value1), MyOutput::Result(value2)) =
-//             (poll1_value, poll2_value)
-//         {
-//             assert_eq!(*value1, 20);
-//             assert_eq!(*value2, 30);
-//         }
+    cahotic.schedule_after(&mut poll_2, &mut poll_1).unwrap();
 
-//         MyOutput::Result(100)
-//     }));
-//     poll3.after(&mut poll1).unwrap();
-//     poll3.after(&mut poll2).unwrap();
-//     cahotic.schedule_exec(poll1);
-//     cahotic.schedule_exec(poll3);
-//     cahotic.schedule_exec(poll2);
-//     cahotic.submit_packet();
+    cahotic.schedule_exec(poll_2);
+    cahotic.schedule_exec(poll_1);
 
-//     // testing 4
-//     let mut poll1 = Schedule::create_task(MyTask::Task(|| {
-//         sleep(Duration::from_millis(1000));
-//         MyOutput::Result(20)
-//     }));
-//     let mut poll2 = Schedule::create_task(MyTask::Task(|| {
-//         sleep(Duration::from_millis(250));
-//         MyOutput::Result(30)
-//     }));
+    // Testing 2
+    for _ in 0..63 {
+        cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
+    }
 
-//     let mut poll3 = Schedule::create_schedule(MyTask::Schedule(|schedule_vec| {
-//         let poll1_value = schedule_vec
-//             .get(0)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+    let mut poll_1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+        sleep(Duration::from_millis(500));
+        MyOutput::Result(10)
+    }));
 
-//         let poll2_value = schedule_vec
-//             .get(1)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+    let mut poll_2 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
+        if let Some(MyOutput::Result(x)) = schedule_vec.get(0) {
+            assert_eq!(*x, 10);
+        } else {
+            panic!("Schedule Testing Error")
+        }
 
-//         if let (MyOutput::None, MyOutput::None) = (poll1_value, poll2_value) {
-//             panic!("Error, poll2 accesses poll1 or poll2 which has a value of None")
-//         } else if let (MyOutput::Result(value1), MyOutput::Result(value2)) =
-//             (poll1_value, poll2_value)
-//         {
-//             assert_eq!(*value1, 20);
-//             assert_eq!(*value2, 30);
-//         }
+        MyOutput::None
+    }));
 
-//         MyOutput::Result(100)
-//     }));
-//     poll3.after(&mut poll1).unwrap();
-//     poll3.after(&mut poll2).unwrap();
+    cahotic.schedule_after(&mut poll_2, &mut poll_1).unwrap();
 
-//     let mut poll4 = Schedule::create_schedule(MyTask::Schedule(|schedule_vec| {
-//         let poll1_value = schedule_vec
-//             .get(0)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+    cahotic.schedule_exec(poll_2);
+    cahotic.schedule_exec(poll_1);
 
-//         let poll2_value = schedule_vec
-//             .get(1)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+    cahotic.join();
+}
 
-//         let poll3_value = schedule_vec
-//             .get(2)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+#[test]
+fn schedule_4() {
+    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4> = Cahotic::init();
 
-//         if let (MyOutput::None, MyOutput::None, MyOutput::None) =
-//             (poll1_value, poll2_value, poll3_value)
-//         {
-//             panic!("Error, poll2 accesses poll1 or poll2 or poll3 which has a value of None")
-//         } else if let (
-//             MyOutput::Result(value1),
-//             MyOutput::Result(value2),
-//             MyOutput::Result(value3),
-//         ) = (poll1_value, poll2_value, poll3_value)
-//         {
-//             assert_eq!(*value1, 20);
-//             assert_eq!(*value2, 30);
-//             assert_eq!(*value3, 100);
-//         }
+    let mut poll_1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+        sleep(Duration::from_millis(500));
+        MyOutput::Result(10)
+    }));
 
-//         MyOutput::Result(100)
-//     }));
-//     poll4.after(&mut poll1).unwrap();
-//     poll4.after(&mut poll2).unwrap();
-//     poll4.after(&mut poll3).unwrap();
+    let mut poll_2 = cahotic.scheduling_create_initial(MyTask::Task(|| MyOutput::Result(20)));
 
-//     cahotic.schedule_exec(poll1);
-//     cahotic.schedule_exec(poll3);
-//     cahotic.schedule_exec(poll2);
-//     cahotic.schedule_exec(poll4);
-//     cahotic.submit_packet();
+    let mut poll_3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
+        if let (Some(MyOutput::Result(x)), Some(MyOutput::Result(y))) =
+            (schedule_vec.get(0), schedule_vec.get(1))
+        {
+            assert_eq!(*x, 10);
+            assert_eq!(*y, 20);
+        } else {
+            panic!("Schedule Testing Error")
+        }
 
-//     // testing 5
-//     let mut poll1 = Schedule::create_task(MyTask::Task(|| {
-//         sleep(Duration::from_millis(1000));
-//         MyOutput::Result(20)
-//     }));
-//     let mut poll2 = Schedule::create_task(MyTask::Task(|| {
-//         sleep(Duration::from_millis(250));
-//         MyOutput::Result(30)
-//     }));
+        MyOutput::None
+    }));
 
-//     let mut poll3 = Schedule::create_schedule(MyTask::Schedule(|schedule_vec| {
-//         let poll1_value = schedule_vec
-//             .get(0)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+    cahotic.schedule_after(&mut poll_3, &mut poll_1).unwrap();
+    cahotic.schedule_after(&mut poll_3, &mut poll_2).unwrap();
 
-//         let poll2_value = schedule_vec
-//             .get(1)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+    cahotic.schedule_exec(poll_3);
+    cahotic.schedule_exec(poll_2);
+    cahotic.schedule_exec(poll_1);
 
-//         if let (MyOutput::None, MyOutput::None) = (poll1_value, poll2_value) {
-//             panic!("Error, poll2 accesses poll1 or poll2 which has a value of None")
-//         } else if let (MyOutput::Result(value1), MyOutput::Result(value2)) =
-//             (poll1_value, poll2_value)
-//         {
-//             assert_eq!(*value1, 20);
-//             assert_eq!(*value2, 30);
-//         }
+    cahotic.join();
+}
 
-//         MyOutput::Result(100)
-//     }));
-//     poll3.after(&mut poll1).unwrap();
-//     poll3.after(&mut poll2).unwrap();
+#[test]
+fn schedule_5() {
+    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4> = Cahotic::init();
 
-//     let mut poll4 = Schedule::create_schedule(MyTask::Schedule(|schedule_vec| {
-//         let poll1_value = schedule_vec
-//             .get(0)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+    let mut poll_1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+        sleep(Duration::from_millis(500));
+        MyOutput::Result(10)
+    }));
+    let mut poll_2 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
+        if let Some(MyOutput::Result(x)) = schedule_vec.get(0) {
+            assert_eq!(*x, 10);
+        } else {
+            panic!("Schedule Testing Error")
+        }
 
-//         let poll2_value = schedule_vec
-//             .get(1)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+        MyOutput::None
+    }));
 
-//         let poll3_value = schedule_vec
-//             .get(2)
-//             .expect("poll2 accessed an invalid index on schedule_vec");
+    cahotic.schedule_after(&mut poll_2, &mut poll_1).unwrap();
 
-//         if let (MyOutput::None, MyOutput::None, MyOutput::None) =
-//             (poll1_value, poll2_value, poll3_value)
-//         {
-//             panic!("Error, poll2 accesses poll1 or poll2 or poll3 which has a value of None")
-//         } else if let (
-//             MyOutput::Result(value1),
-//             MyOutput::Result(value2),
-//             MyOutput::Result(value3),
-//         ) = (poll1_value, poll2_value, poll3_value)
-//         {
-//             assert_eq!(*value1, 20);
-//             assert_eq!(*value2, 30);
-//             assert_eq!(*value3, 100);
-//         }
+    cahotic.schedule_exec(poll_2);
+    cahotic.schedule_exec(poll_1);
 
-//         MyOutput::Result(100)
-//     }));
-//     poll4.after(&mut poll1).unwrap();
-//     poll4.after(&mut poll2).unwrap();
-//     poll4.after(&mut poll3).unwrap();
-
-//     cahotic.schedule_exec(poll1);
-//     cahotic.submit_packet();
-//     cahotic.schedule_exec(poll3);
-//     cahotic.submit_packet();
-//     cahotic.schedule_exec(poll2);
-//     cahotic.submit_packet();
-//     cahotic.schedule_exec(poll4);
-//     cahotic.submit_packet();
-
-//     cahotic.join();
-// }
+    cahotic.join();
+}

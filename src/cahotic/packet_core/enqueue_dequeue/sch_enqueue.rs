@@ -72,8 +72,11 @@ where
                     poll_child: schedule.poll_child,
                 };
 
-                *(&mut (*self.schedule_list.load(Ordering::Acquire))[allocated_idx as usize]
-                    .schedule) = Some(waiting_task);
+                let schedule_list =
+                    &mut (*self.schedule_list.load(Ordering::Acquire))[allocated_idx as usize];
+
+                schedule_list.schedule = Some(waiting_task);
+                schedule_list.empty.store(false, Ordering::Relaxed);
 
                 packet.empty.store(false, Ordering::Release);
 
