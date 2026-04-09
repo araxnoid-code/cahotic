@@ -33,31 +33,35 @@ impl SchedulerTrait<MyOutput> for MyTask {
 
 #[test]
 fn spawn_task() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
 
     // testing 1
     // check spawn 1 task
     cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
-    cahotic.submit_packet();
 
     // testing 2
     // check spawn 3 task
-    // // in one packet
+    // // 1
     cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
     cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
     cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
-    cahotic.submit_packet();
-    // // different packet
-    cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
-    cahotic.submit_packet();
-    cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
-    cahotic.submit_packet();
-    cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
-    cahotic.submit_packet();
+
+    // // 2
+    for _ in 0..64 {
+        cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
+    }
+
+    for _ in 0..64 {
+        cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
+    }
+
+    for _ in 0..64 {
+        cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
+    }
 
     // testing 3
     // check spawn 3 task yang delay
-    // // in one packet
+    // // 1
     cahotic.spawn_task(MyTask::Task(|| {
         sleep(Duration::from_millis(500));
         MyOutput::None
@@ -70,35 +74,46 @@ fn spawn_task() {
         sleep(Duration::from_millis(500));
         MyOutput::None
     }));
-    cahotic.submit_packet();
-    // // different packet
-    cahotic.spawn_task(MyTask::Task(|| {
-        sleep(Duration::from_millis(500));
-        MyOutput::None
-    }));
-    cahotic.submit_packet();
-    cahotic.spawn_task(MyTask::Task(|| {
-        sleep(Duration::from_millis(500));
-        MyOutput::None
-    }));
-    cahotic.submit_packet();
-    cahotic.spawn_task(MyTask::Task(|| {
-        sleep(Duration::from_millis(500));
-        MyOutput::None
-    }));
-    cahotic.submit_packet();
+
+    // // 2
+    for _ in 0..64 {
+        cahotic.spawn_task(MyTask::Task(|| {
+            sleep(Duration::from_millis(100));
+            MyOutput::None
+        }));
+    }
+
+    for _ in 0..64 {
+        cahotic.spawn_task(MyTask::Task(|| {
+            sleep(Duration::from_millis(100));
+            MyOutput::None
+        }));
+    }
 
     // testing 4
-    // spawn task exceeds packet size capacity
-    for _ in 0..256 {
+    for _ in 0..64 {
         cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
     }
-    cahotic.submit_packet();
-    for _ in 0..256 {
+
+    for _ in 0..64 * 8 {
         cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
-        cahotic.submit_packet();
     }
-    cahotic.submit_packet();
+
+    for _ in 0..64 * 16 {
+        cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
+    }
+
+    for _ in 0..64 * 32 {
+        cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
+    }
+
+    for _ in 0..64 * 64 {
+        cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
+    }
+
+    for _ in 0..64 * 128 {
+        cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
+    }
 
     cahotic.join();
 }

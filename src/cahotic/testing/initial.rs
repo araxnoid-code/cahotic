@@ -31,13 +31,10 @@ impl SchedulerTrait<MyOutput> for MyTask {
 
 #[test]
 fn initial() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8, 16>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 4>::init();
 
     // spawn task
     cahotic.spawn_task(MyTask::Task(|| MyOutput::None));
-
-    // submit packet
-    cahotic.submit_packet();
 
     cahotic.join();
 }
