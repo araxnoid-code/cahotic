@@ -39,7 +39,7 @@ fn main() {
 }
 ```
 dari code diatas dapat disimpulkan:
-1. awalan schedule adalah poll1 dan poll2.
+1. initial schedule adalah poll1 dan poll2.
 2. schedule poll3 bergantung kepada poll1 dan poll2.
 
 <img width="400" src="./../img/schedule_img_1.png">
@@ -110,5 +110,5 @@ pada contoh kode diatas, poll3 memiliki `poll_counter` bernilai 2 dan di daat po
     
 penjelasan:
 1. normal schedule dan initial schedule dibuat lalu dieksekusi ke dalam `packet-core`
-2. `packet-core` akan mengolah schedule tersebut serta menempatinya ke dalam `ring-buffer` dan `schedule-list` pada `packet-core`. untuk normal schedule masih diasumsikan masuk kedalam packet namun secara fisik masuk ke dalam `schedule-list`.
+2. `packet-core` akan mengolah schedule tersebut serta menempatinya ke dalam `ring-buffer` dan `schedule-list` pada `packet-core`. untuk normal schedule masih diasumsikan masuk kedalam ring-buffer namun secara fisik masuk ke dalam `schedule-list`.
 3. para thread dalam thread pool akan mengeksekusi task lalu di saat thread mendapati `poll_counter` maka thread akan langsung mengupdate `poll-schedule-bitmap`. thread juga secara berkala akan check `poll-schedule-bitmap` untuk mengeksekusi schedule yang sudah siap untuk di eksekusi.
