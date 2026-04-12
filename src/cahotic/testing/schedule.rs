@@ -195,11 +195,8 @@ fn schedule_5() {
 
     cahotic.schedule_after(&mut poll_3, &mut poll_2).unwrap();
 
-    sleep(Duration::from_millis(1000));
-
     cahotic.schedule_exec(poll_1);
     sleep(Duration::from_millis(1000));
-
     sleep(Duration::from_millis(1000));
     cahotic.schedule_exec(poll_2);
     sleep(Duration::from_millis(1000));
