@@ -86,6 +86,16 @@ where
                 }
                 self.break_counter += 1;
             }
+
+            // adapt detech
+            let done_counter = self.done_task.load(Ordering::Relaxed);
+            if let Some(done_acc) = self.packet_core.adapt.adapt(done_counter) {
+                println!(
+                    "thrad {} handling adapt with {} task done",
+                    self._id,
+                    done_counter - done_acc
+                );
+            };
         }
     }
 }
