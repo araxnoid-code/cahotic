@@ -3,7 +3,7 @@
     <b><p>Thread Pool Management</p></b>
     <p>⚙️ under development ⚙️</p>
     <b>
-        <p>Version / 0.2.0</p>
+        <p>Version / 0.2.1</p>
     </b>
 </div>
 
@@ -24,7 +24,7 @@ cargo add cahotic
 ```
 Or add the following line to your Cargo.toml:
 ```toml
-cahotic = "0.2.0"
+cahotic = "0.2.1"
 ```
 
 ### Code
