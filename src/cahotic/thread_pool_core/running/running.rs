@@ -6,7 +6,7 @@ use std::{
 
 use crate::{DequeueStatus, ExecTask, OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
 
-impl<F, FD, O> ThreadUnit<F, FD, O>
+impl<F, FD, O, const MAX_RING_BUFFER: usize> ThreadUnit<F, FD, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: SchedulerTrait<O> + Send + 'static,
@@ -25,9 +25,9 @@ where
             self.drop_packet();
 
             let order_idx = self.order;
-            let task = if order_idx != 4096 {
+            let task = if order_idx != MAX_RING_BUFFER {
                 if let DequeueStatus::Ok(task) = self.packet_core.check_order(order_idx) {
-                    self.order = 4096;
+                    self.order = MAX_RING_BUFFER;
                     Some(task)
                 } else {
                     None
@@ -86,16 +86,6 @@ where
                 }
                 self.break_counter += 1;
             }
-
-            // adapt detech
-            let done_counter = self.done_task.load(Ordering::Relaxed);
-            if let Some(done_acc) = self.packet_core.adapt.adapt(done_counter) {
-                println!(
-                    "thrad {} handling adapt with {} task done",
-                    self._id,
-                    done_counter - done_acc
-                );
-            };
         }
     }
 }

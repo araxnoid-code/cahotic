@@ -3,9 +3,9 @@ use std::{
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
-use crate::{OutputTrait, QuotaCounter};
+use crate::{OutputTrait, QuotaUnit};
 
-impl<O> QuotaCounter<O>
+impl<O, const MAX_RING_BUFFER: usize> QuotaUnit<O, MAX_RING_BUFFER>
 where
     O: 'static + OutputTrait + Send,
 {
@@ -38,6 +38,6 @@ where
         }
 
         self.head.store(0, Ordering::Relaxed);
-        self.counter.store(64, Ordering::Relaxed);
+        self.counter.store(MAX_RING_BUFFER >> 6, Ordering::Relaxed);
     }
 }

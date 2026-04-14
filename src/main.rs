@@ -1,46 +1,15 @@
-use std::{thread::sleep, time::Duration};
-
-use cahotic::{Cahotic, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait};
-
-enum MyOutput {
-    Result(i32),
-    None,
-}
-impl OutputTrait for MyOutput {}
-
-enum MyTask {
-    Task(fn() -> MyOutput),
-    Schedule(fn(scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput),
-}
-
-impl TaskTrait<MyOutput> for MyTask {
-    fn execute(&self) -> MyOutput {
-        match self {
-            MyTask::Task(f) => f(),
-            MyTask::Schedule(_) => MyOutput::None,
-        }
-    }
-}
-
-impl SchedulerTrait<MyOutput> for MyTask {
-    fn execute(&self, scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput {
-        match self {
-            MyTask::Task(_) => MyOutput::None,
-            MyTask::Schedule(f) => f(scheduler_vec),
-        }
-    }
-}
+use cahotic::{CahoticBuilder, DefaultOutput, DefaultTask};
 
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
+    let cahotic = CahoticBuilder::default::<usize>()
+        .set_workers::<16>()
+        .set_ring_buffer_size::<4096>()
+        .build();
 
-    for i in 0..1000 {
-        cahotic.spawn_task(MyTask::Task(|| {
-            sleep(Duration::from_millis(1000));
-            println!("done!");
-            MyOutput::None
-        }));
-    }
+    cahotic.spawn_task(DefaultTask(|| {
+        println!("done");
+        DefaultOutput(10)
+    }));
 
     cahotic.join();
 }

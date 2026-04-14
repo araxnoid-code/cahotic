@@ -11,7 +11,7 @@ use std::{
 
 use crate::{OutputTrait, PacketCore, SchedulerTrait, TaskTrait, ThreadUnit};
 
-pub struct ThreadPoolCore<F, FD, O, const N: usize>
+pub struct ThreadPoolCore<F, FD, O, const N: usize, const MAX_RING_BUFFER: usize>
 where
     F: TaskTrait<O> + 'static + Send,
     FD: SchedulerTrait<O> + Send + 'static,
@@ -25,16 +25,19 @@ where
     pub(crate) join_flag: Arc<AtomicBool>,
 
     // list core
-    packet_core: Arc<PacketCore<F, FD, O>>,
+    packet_core: Arc<PacketCore<F, FD, O, MAX_RING_BUFFER>>,
 }
 
-impl<F, FD, O, const N: usize> ThreadPoolCore<F, FD, O, N>
+impl<F, FD, O, const N: usize, const MAX_RING_BUFFER: usize>
+    ThreadPoolCore<F, FD, O, N, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
     FD: SchedulerTrait<O> + Send + 'static + Sync,
     O: OutputTrait + Send + Sync,
 {
-    pub fn init(list_core: Arc<PacketCore<F, FD, O>>) -> ThreadPoolCore<F, FD, O, N> {
+    pub fn init(
+        list_core: Arc<PacketCore<F, FD, O, MAX_RING_BUFFER>>,
+    ) -> ThreadPoolCore<F, FD, O, N, MAX_RING_BUFFER> {
         // handler
         let join_flag = Arc::new(AtomicBool::new(false));
         let done_task = Arc::new(AtomicU64::new(0));
@@ -63,7 +66,7 @@ where
                     sch_counter: 0,
                     masking_sch_idx: 64,
                     use_sch_idx: 64,
-                    order: 4096,
+                    order: MAX_RING_BUFFER,
                 };
 
                 while !block_clone.load(Ordering::Acquire) {

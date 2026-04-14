@@ -8,7 +8,7 @@ use crate::{
     ExecTask, OutputTrait, PacketCore, PollWaiting, SchedulerTrait, TaskTrait, WaitingTask,
 };
 
-impl<F, FS, O> PacketCore<F, FS, O>
+impl<F, FS, O, const MAX_RING_BUFFER: usize> PacketCore<F, FS, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
@@ -21,7 +21,7 @@ where
 
         let idx = self.quota_bitmap.load(Ordering::Acquire).trailing_zeros();
         self.quota_bitmap
-            .fetch_and(!(1_u64 << idx), Ordering::Release);
+            .fetch_and(!(1_u64 << idx), Ordering::Relaxed);
         self.use_quota.store(idx as usize, Ordering::Relaxed);
         idx as usize
     }
@@ -29,8 +29,8 @@ where
     pub fn enqueue(&self, task: F) -> PollWaiting<O> {
         unsafe {
             let mut quota_idx = self.use_quota.load(Ordering::Relaxed);
-            let head = self.head.fetch_add(1, Ordering::Release) & 4095;
-            if (head & 63) == 0 {
+            let head = self.head.fetch_add(1, Ordering::Relaxed) & (MAX_RING_BUFFER - 1) as u64;
+            if (head & ((MAX_RING_BUFFER >> 6) - 1) as u64) == 0 {
                 quota_idx = self.get_quota_use();
             }
 

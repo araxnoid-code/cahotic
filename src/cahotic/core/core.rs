@@ -4,28 +4,29 @@ use crate::{
     OutputTrait, PacketCore, PollWaiting, Schedule, SchedulerTrait, TaskTrait, ThreadPoolCore,
 };
 
-pub struct Cahotic<F, FS, O, const N: usize>
+pub struct Cahotic<F, FS, O, const N: usize, const MAX_RING_BUFFER: usize>
 where
     F: TaskTrait<O> + 'static + Send,
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     // task Core
-    pub(crate) packet_core: Arc<PacketCore<F, FS, O>>,
+    pub(crate) packet_core: Arc<PacketCore<F, FS, O, MAX_RING_BUFFER>>,
 
     // thread pool Core
-    pub(crate) thread_pool_core: ThreadPoolCore<F, FS, O, N>,
+    pub(crate) thread_pool_core: ThreadPoolCore<F, FS, O, N, MAX_RING_BUFFER>,
 }
 
-impl<F, FS, O, const N: usize> Cahotic<F, FS, O, N>
+impl<F, FS, O, const N: usize, const MAX_RING_BUFFER: usize> Cahotic<F, FS, O, N, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
     FS: SchedulerTrait<O> + Send + 'static + Sync,
     O: 'static + OutputTrait + Send + Sync,
 {
-    pub fn init() -> Cahotic<F, FS, O, N> {
-        let list_core = Arc::new(PacketCore::<F, FS, O>::init());
-        let thread_pool_core = ThreadPoolCore::<F, FS, O, N>::init(list_core.clone());
+    pub fn init() -> Cahotic<F, FS, O, N, MAX_RING_BUFFER> {
+        let list_core = Arc::new(PacketCore::<F, FS, O, MAX_RING_BUFFER>::init());
+        let thread_pool_core =
+            ThreadPoolCore::<F, FS, O, N, MAX_RING_BUFFER>::init(list_core.clone());
         Self {
             packet_core: list_core,
             thread_pool_core,

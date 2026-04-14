@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 
-use crate::{OutputTrait, QuotaCounter};
+use crate::{OutputTrait, QuotaUnit};
 
-impl<O> QuotaCounter<O>
+impl<O, const MAX_RING_BUFFER: usize> QuotaUnit<O, MAX_RING_BUFFER>
 where
     O: 'static + OutputTrait + Send,
 {
