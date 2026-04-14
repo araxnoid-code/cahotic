@@ -1,6 +1,6 @@
 mod core;
 pub use core::*;
 
+mod builder;
 mod getter;
-mod init;
-pub use init::*;
+pub use builder::*;
