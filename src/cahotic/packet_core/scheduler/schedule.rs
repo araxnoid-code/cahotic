@@ -42,7 +42,7 @@ where
     pub(crate) candidate_packet_vec: Option<Vec<&'static AtomicUsize>>,
 }
 
-impl<F, FS, O> PacketCore<F, FS, O>
+impl<F, FS, O, const MAX_RING_BUFFER: usize> PacketCore<F, FS, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,

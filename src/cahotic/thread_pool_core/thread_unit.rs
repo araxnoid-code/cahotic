@@ -5,7 +5,7 @@ use std::sync::{
 
 use crate::{OutputTrait, PacketCore, SchedulerTrait, TaskTrait};
 
-pub struct ThreadUnit<F, FS, O>
+pub struct ThreadUnit<F, FS, O, const MAX_RING_BUFFER: usize>
 where
     F: TaskTrait<O> + 'static + Send,
     FS: SchedulerTrait<O> + Send + 'static,
@@ -22,7 +22,7 @@ where
     pub(crate) done_task: Arc<AtomicU64>,
 
     // // list core
-    pub(crate) packet_core: Arc<PacketCore<F, FS, O>>,
+    pub(crate) packet_core: Arc<PacketCore<F, FS, O, MAX_RING_BUFFER>>,
 
     // packet
     // // drop-packet

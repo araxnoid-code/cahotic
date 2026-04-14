@@ -8,7 +8,7 @@ use crate::{
     TaskTrait, WaitingTask,
 };
 
-impl<F, FS, O> PacketCore<F, FS, O>
+impl<F, FS, O, const MAX_RING_BUFFER: usize> PacketCore<F, FS, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
@@ -17,8 +17,8 @@ where
     pub fn schedule_enqueue(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
         unsafe {
             let mut quota_idx = self.use_quota.load(Ordering::Relaxed);
-            let head = self.head.fetch_add(1, Ordering::Release) & 4095;
-            if (head & 63) == 0 {
+            let head = self.head.fetch_add(1, Ordering::Relaxed) & (MAX_RING_BUFFER - 1) as u64;
+            if (head & ((MAX_RING_BUFFER >> 6) - 1) as u64) == 0 {
                 quota_idx = self.get_quota_use();
             }
 
@@ -29,12 +29,14 @@ where
             }
             schedule
                 .candidate_packet_idx
-                .store(quota_idx, Ordering::Release);
+                .store(quota_idx, Ordering::Relaxed);
 
             // update handler
             self.in_task.fetch_add(1, Ordering::Release);
             // create return_ptr
             let return_ptr: &'static AtomicPtr<O> = schedule.return_ptr;
+            // update quota counter
+            quota.fetch_add(schedule.candidate_done_counter, Ordering::Relaxed);
 
             if let ScheduleTask::Initial(task) = schedule.task {
                 let waiting_task = WaitingTask {
@@ -46,8 +48,6 @@ where
                 };
 
                 packet.task = Some(waiting_task);
-
-                packet.empty.store(false, Ordering::Release);
             } else if let (
                 ScheduleTask::Schedule(task, allocated_idx),
                 Some(schedule_vec),
@@ -78,8 +78,6 @@ where
                 schedule_list.schedule = Some(waiting_task);
                 schedule_list.empty.store(false, Ordering::Relaxed);
 
-                packet.empty.store(false, Ordering::Release);
-
                 if execute_directly == true {
                     self.poll_schedule_bitmap
                         .fetch_or(1_u64 << allocated_idx, Ordering::Release);
@@ -91,7 +89,8 @@ where
                 Some(schedule.candidate_packet_idx),
                 schedule.poll_counter,
             ));
-            quota.fetch_add(schedule.candidate_done_counter, Ordering::Relaxed);
+
+            packet.empty.store(false, Ordering::Release);
 
             PollWaiting {
                 data_ptr: return_ptr,

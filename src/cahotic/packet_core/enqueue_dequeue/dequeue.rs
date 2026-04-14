@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use crate::{DequeueStatus, OutputTrait, PacketCore, SchedulerTrait, TaskTrait};
 
-impl<F, FS, O> PacketCore<F, FS, O>
+impl<F, FS, O, const MAX_RING_BUFFER: usize> PacketCore<F, FS, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + Send + 'static,
     FS: SchedulerTrait<O> + Send + 'static,
@@ -10,7 +10,7 @@ where
 {
     pub fn dequeue(&self) -> DequeueStatus<F, FS, O> {
         unsafe {
-            let tail = self.tail.fetch_add(1, Ordering::Relaxed) & 4095;
+            let tail = self.tail.fetch_add(1, Ordering::Relaxed) & (MAX_RING_BUFFER - 1) as u64;
 
             let packet = &mut (&mut (*self.ring_buffer.load(Ordering::Relaxed)))[tail as usize];
             if packet.empty.load(Ordering::Acquire) {
