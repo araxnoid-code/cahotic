@@ -102,7 +102,13 @@ where
         }
     }
 
-    pub fn build(&self) -> Cahotic<F, FS, O, N, MAX_RING_BUFFER> {
+    pub fn build(&self) -> Result<Cahotic<F, FS, O, N, MAX_RING_BUFFER>, &'static str> {
+        if MAX_RING_BUFFER & 63 != 0 || MAX_RING_BUFFER <= 0 {
+            return Err(
+                "build error, The size for the ring buffer must be greater than 0 and must be a multiple of 64.",
+            );
+        }
+
         Cahotic::init()
     }
 }

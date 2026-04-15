@@ -23,14 +23,21 @@ where
     FS: SchedulerTrait<O> + Send + 'static + Sync,
     O: 'static + OutputTrait + Send + Sync,
 {
-    pub fn init() -> Cahotic<F, FS, O, N, MAX_RING_BUFFER> {
+    pub fn init() -> Result<Cahotic<F, FS, O, N, MAX_RING_BUFFER>, &'static str> {
+        if MAX_RING_BUFFER & 63 != 0 || MAX_RING_BUFFER <= 0 {
+            return Err(
+                "build error, The size for the ring buffer must be greater than 0 and must be a multiple of 64.",
+            );
+        }
+
         let list_core = Arc::new(PacketCore::<F, FS, O, MAX_RING_BUFFER>::init());
         let thread_pool_core =
             ThreadPoolCore::<F, FS, O, N, MAX_RING_BUFFER>::init(list_core.clone());
-        Self {
+
+        Ok(Self {
             packet_core: list_core,
             thread_pool_core,
-        }
+        })
     }
 
     // spawn task

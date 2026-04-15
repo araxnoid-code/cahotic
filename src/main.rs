@@ -4,7 +4,8 @@ fn main() {
     let cahotic = CahoticBuilder::default::<usize>()
         .set_workers::<16>()
         .set_ring_buffer_size::<4096>()
-        .build();
+        .build()
+        .unwrap();
 
     cahotic.spawn_task(DefaultTask(|| {
         println!("done");

@@ -3,7 +3,7 @@
     <b><p>Thread Pool Management</p></b>
     <p>⚙️ under development ⚙️</p>
     <b>
-        <p>Version / 0.2.1</p>
+        <p>DEV / 0.3.0</p>
     </b>
 </div>
 
@@ -18,14 +18,15 @@ explanation of main features (English and Indonesian available): [guide.md](http
 
 ## Starting
 ### Installation
-Run the following Cargo command in your project directory:
+not yet
+<!--Run the following Cargo command in your project directory:
 ```sh
 cargo add cahotic
 ```
 Or add the following line to your Cargo.toml:
 ```toml
 cahotic = "0.2.1"
-```
+```-->
 
 ### Code
 ```rust
