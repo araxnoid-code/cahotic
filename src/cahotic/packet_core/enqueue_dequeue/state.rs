@@ -13,6 +13,7 @@ where
 }
 
 // Try Enqueue
+#[derive(Debug)]
 pub enum TryEnqueueStatus {
     QuotaFull,
     RingBufferFull,
