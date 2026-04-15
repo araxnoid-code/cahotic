@@ -45,6 +45,10 @@ where
         self.packet_core.spawn_task(f)
     }
 
+    pub fn try_spawn_task(&self, f: F) -> Result<PollWaiting<O>, crate::TryEnqueueStatus> {
+        self.packet_core.try_spawn_task(f)
+    }
+
     // scheduling
     pub fn schedule_exec(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
         self.packet_core.schedule_exec(schedule)

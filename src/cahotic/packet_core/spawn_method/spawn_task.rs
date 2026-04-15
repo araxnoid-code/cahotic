@@ -9,4 +9,8 @@ where
     pub fn spawn_task(&self, task: F) -> PollWaiting<O> {
         self.enqueue(task)
     }
+
+    pub fn try_spawn_task(&self, task: F) -> Result<PollWaiting<O>, crate::TryEnqueueStatus> {
+        self.try_enqueue(task)
+    }
 }

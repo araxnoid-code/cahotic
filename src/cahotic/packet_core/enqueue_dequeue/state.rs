@@ -1,5 +1,6 @@
 use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
 
+// Dequeue
 pub enum DequeueStatus<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
@@ -9,4 +10,10 @@ where
     Ok(WaitingTask<F, FS, O>),
     Waiting(usize),
     None,
+}
+
+// Try Enqueue
+pub enum TryEnqueueStatus {
+    QuotaFull,
+    RingBufferFull,
 }
