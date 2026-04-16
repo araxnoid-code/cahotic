@@ -1,4 +1,8 @@
 # Changelog
+# Version/0.2.1
+- resolves race condition bugs when the dependent schedule is still not set but the dependent schedule has finished executing.
+- add testing code.
+
 ## Version/0.2.0
 - opening: The packet mechanism used by `Cahotic` in version/0.1.0 does not have much practical value in practice. This is because, even though it has 64 packets with each packet size being 64, which in total can accommodate 4096 tasks, it is often found that packets are submitted in a state that is not full. This causes performance to decrease significantly to the point where `Cahotic` can only accommodate 64 tasks in the case that each packet only contains 1 task, if there are empty packets this will be even worse. Therefore, due to the problems that caused this sharp decline in performance, it was decided that `Cahotic` would replace this concept.
 
