@@ -3,7 +3,7 @@
     <b><p>Thread Pool Management</p></b>
     <p>⚙️ under development ⚙️</p>
     <b>
-        <p>DEV / 0.3.0</p>
+        <p>version / 0.3.0</p>
     </b>
 </div>
 
@@ -11,65 +11,35 @@
 `cahotic`, thread pool management written in rust.
 
 ## Vesrion
-what's new with: [version/0.2.1](https://github.com/araxnoid-code/cahotic/blob/version/0.2.1/version.md)
+what's new with: [version/0.3.0](https://github.com/araxnoid-code/cahotic/blob/version/0.3.0/version.md)
 
 ## Guide 
-explanation of main features (English and Indonesian available): [guide.md](https://github.com/araxnoid-code/cahotic/blob/version/0.2.1/guide/guide.md)
+explanation of main features (English and Indonesian available): [guide.md](https://github.com/araxnoid-code/cahotic/blob/version/0.3.0/guide/guide.md)
 
 ## Starting
 ### Installation
-not yet
-<!--Run the following Cargo command in your project directory:
+Run the following Cargo command in your project directory:
 ```sh
 cargo add cahotic
 ```
 Or add the following line to your Cargo.toml:
 ```toml
-cahotic = "0.2.1"
-```-->
+cahotic = "0.3.0"
+```
 
 ### Code
 ```rust
 use std::{thread::sleep, time::Duration};
 
-use cahotic::{Cahotic, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait};
-
-enum MyOutput {
-    Result(i32),
-    None,
-}
-impl OutputTrait for MyOutput {}
-
-enum MyTask {
-    Task(fn() -> MyOutput),
-    Schedule(fn(scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput),
-}
-
-impl TaskTrait<MyOutput> for MyTask {
-    fn execute(&self) -> MyOutput {
-        match self {
-            MyTask::Task(f) => f(),
-            MyTask::Schedule(_) => MyOutput::None,
-        }
-    }
-}
-
-impl SchedulerTrait<MyOutput> for MyTask {
-    fn execute(&self, scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput {
-        match self {
-            MyTask::Task(_) => MyOutput::None,
-            MyTask::Schedule(f) => f(scheduler_vec),
-        }
-    }
-}
+use cahotic::{CahoticBuilder, DefaultOutput, DefaultTask};
 
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 4>::init();
+    let cahotic = CahoticBuilder::default::<Option<i32>>().build().unwrap();
 
-    cahotic.spawn_task(MyTask::Task(|| {
+    cahotic.spawn_task(DefaultTask(|| {
         sleep(Duration::from_millis(1000));
-        println!("done!");
-        MyOutput::None
+        println!("Done");
+        DefaultOutput(None)
     }));
 
     cahotic.join();
