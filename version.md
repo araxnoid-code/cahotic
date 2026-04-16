@@ -1,6 +1,6 @@
 # Version/0.3.0
 - Added `CahoticBuilder` for cahotic initialization which allows fast initialization with default values and clear changes.
-1. setting ring buffer size and workers
+1. customization ring buffer size and workers
 ```rust
 use std::{thread::sleep, time::Duration};
 
@@ -23,7 +23,7 @@ fn main() {
 }
 ```
 
-2. Setting Task and Shcedule
+2. customization Task and Shcedule
 ```rust
 use std::{thread::sleep, time::Duration};
 
@@ -54,9 +54,9 @@ fn main() {
     let cahotic = CahoticBuilder::default()
         .set_ring_buffer_size::<4096>()
         .set_workers::<8>()
-        // setting Task
+        // customization Task
         .set_task_type::<MyTask>()
-        // setting Schedule
+        // customization Schedule
         .set_schedule_type::<MySchedule>()
         .build()
         .unwrap();
@@ -97,7 +97,7 @@ fn main() {
 }
 ```
 
-3. Setting Output
+3. customization Output
 ```rust
 use std::{thread::sleep, time::Duration};
 
