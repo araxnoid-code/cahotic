@@ -1,21 +1,20 @@
 use std::{thread::sleep, time::Duration};
 
-use cahotic::{CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask, OutputTrait};
-
-struct MyOutput(&'static str);
-impl OutputTrait for MyOutput {}
+use cahotic::{CahoticBuilder, DefaultOutput, DefaultTask};
 
 fn main() {
-    let cahotic = CahoticBuilder::default::<i32>()
-        .set_type::<DefaultTask<MyOutput>, DefaultSchedule<MyOutput>, MyOutput>()
-        .build()
-        .unwrap();
+    let cahotic = CahoticBuilder::default::<i32>().build().unwrap();
 
-    cahotic.spawn_task(DefaultTask(|| {
+    let poll = cahotic.spawn_task(DefaultTask(|| {
         sleep(Duration::from_millis(1000));
-        println!("Done");
-        MyOutput("ok")
+        println!("done!");
+        DefaultOutput(10)
     }));
+
+    // Tidak akan terjadi pemblokiran, tetapi jika polling belum siap, maka akan mengembalikan Option::None
+    if let Some(value) = poll.get() {
+        println!("{:?}", value.0);
+    }
 
     cahotic.join();
 }

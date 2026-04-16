@@ -1,7 +1,7 @@
-# GUIDE | version/0.2.0
+# GUIDE | version/0.3.0
 ## Fundamental
 ### Spawn
-[1_spawn.md](1_spawn.md)
+[1_initial_and_spawn.md](1_initial_and_spawn.md)
 
 ### Schedule
 [2_schedule.md](2_schedule.md)

@@ -1,4 +1,4 @@
-# GUIDE | version/0.2.0
+# GUIDE | version/0.3.0
 ## Fundamental
 ### Spawn
 [1_spawn.md](1_spawn.md)
