@@ -124,3 +124,5 @@ fn main() {
 
 
 - Added `Cahotic::try_spawn_task(&self, F)` method to spawn tasks which will return Err(TryEnqueueStatus) if the ring_buffer is full, this will not cause blocking like `Cahotic::spawn_task(&self, F)`.
+
+- update guide to match the changes made in version 0.3.0
