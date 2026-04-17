@@ -1,33 +1,37 @@
 # Schedule Execution
 ```rust
-fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
+use std::{thread::sleep, time::Duration};
 
-    let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+use cahotic::{CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask};
+
+fn main() {
+    let cahotic = CahoticBuilder::default().build().unwrap();
+
+    let mut poll1 = cahotic.scheduling_create_initial(DefaultTask(|| {
         sleep(Duration::from_millis(1000));
         println!("task 1 done");
-        MyOutput::Result(10)
+        DefaultOutput(10)
     }));
 
-    let mut poll2 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+    let mut poll2 = cahotic.scheduling_create_initial(DefaultTask(|| {
         sleep(Duration::from_millis(500));
         println!("task 2 done");
-        MyOutput::Result(20)
+        DefaultOutput(20)
     }));
 
     // untuk poll3 dapat mengakses value poll1 dan value poll2. poll3 harus ketergantungan terlebih dahulu dengan poll1 dan poll2
-    let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
+    let mut poll3 = cahotic.scheduling_create_schedule(DefaultSchedule(|schedule_vec| {
         // dalam mengakses index, bersarkan dari urutan penjadwalan dengan poll1 dan poll2
-        let value_1 = schedule_vec.get(0);
-        let value_2 = schedule_vec.get(1);
+        let value_1 = schedule_vec.get(0).unwrap();
+        let value_2 = schedule_vec.get(1).unwrap();
         println!(
             "task 3 done, value1: {:?} and value: {:?}",
-            value_1, value_2
+            value_1.0, value_2.0
         );
-        MyOutput::None
+        DefaultOutput(30)
     }));
 
-    // urutan penjadwalan akan mempengaruhi index mengakses poll1 dan poll2 oleh poll3 
+    // urutan penjadwalan akan mempengaruhi index mengakses poll1 dan poll2 oleh poll3
     cahotic.schedule_after(&mut poll3, &mut poll1).unwrap(); // index 0
     cahotic.schedule_after(&mut poll3, &mut poll2).unwrap(); // index 1
 
@@ -46,16 +50,16 @@ dari code diatas dapat disimpulkan:
 
 diawali dengan membuat initial schedule yang dibuat menggunakan `Cahotic::scheduling_create_initial(&self, F)`
 ```rust
-let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+let mut poll1 = cahotic.scheduling_create_initial(DefaultTask(|| {
     sleep(Duration::from_millis(1000));
     println!("task 1 done");
-    MyOutput::Result(10)
+    DefaultOutput(10)
 }));
 
-let mut poll2 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+let mut poll2 = cahotic.scheduling_create_initial(DefaultTask(|| {
     sleep(Duration::from_millis(500));
     println!("task 2 done");
-    MyOutput::Result(20)
+    DefaultOutput(20)
 }));
 ```
 `poll1` dan `poll2` akan memiliki value bertipe `Schedule<F, FS, O>`
@@ -71,22 +75,22 @@ cahotic.schedule_exec(poll2); // → langsung masuk ke ring-buffer
 cahotic.schedule_exec(poll1); // → langsung masuk ke ring-buffer
 ```
 
-untuk shcedule(schedule normal), membuatnya melalui `Cahotic::scheduling_create_schedule(&self, FS)`
+untuk normal shcedule, membuatnya melalui `Cahotic::scheduling_create_schedule(&self, FS)`
 ```rust
-let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
+let mut poll3 = cahotic.scheduling_create_schedule(DefaultSchedule(|schedule_vec| {
     // dalam mengakses index, bersarkan dari urutan penjadwalan dengan poll1 dan poll2
-    let value_1 = schedule_vec.get(0);
-    let value_2 = schedule_vec.get(1);
+    let value_1 = schedule_vec.get(0).unwrap();
+    let value_2 = schedule_vec.get(1).unwrap();
     println!(
         "task 3 done, value1: {:?} and value: {:?}",
-        value_1, value_2
+        value_1.0, value_2.0
     );
-    MyOutput::None
+    DefaultOutput(30)
 }));
 ```
 code diatas akan langsung mengalokasikan space didalam `schedule_list` yang menunggu di dalam hingga siap untuk dieksekusi, `schedule_list` sendiri dapat menampung 64 schedule dalam satu waktu, jika `schedule_list` penuh maka `packet-core` akan mengalami blocking hingga ada space pada `schedule_list` kosong. `packet-core` mengalokasikan schedule pada `schedule_list` menggunakan `allo-schedule-bitmap`.
 
-para thread di dalam thread pool juga secara berkala melakukan pengechekan cepat untuk melihat apakah ada task schedule yang siap untuk dieksekusi menggunakan `poll-shcedule-bitmap`.
+thread di dalam thread pool juga secara berkala melakukan pengechekan cepat untuk melihat apakah ada task schedule yang siap untuk dieksekusi menggunakan `poll-shcedule-bitmap`.
 
 ```rust
 cahotic.schedule_after(&mut poll3, &mut poll1).unwrap();
