@@ -3,51 +3,21 @@
 ``` rust
 use std::{thread::sleep, time::Duration};
 
-use cahotic::{Cahotic, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait};
-
-#[derive(Debug)]
-enum MyOutput {
-    Result(i32),
-    None,
-}
-impl OutputTrait for MyOutput {}
-
-enum MyTask {
-    Task(fn() -> MyOutput),
-    Schedule(fn(scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput),
-}
-
-impl TaskTrait<MyOutput> for MyTask {
-    fn execute(&self) -> MyOutput {
-        match self {
-            MyTask::Task(f) => f(),
-            MyTask::Schedule(_) => MyOutput::None,
-        }
-    }
-}
-
-impl SchedulerTrait<MyOutput> for MyTask {
-    fn execute(&self, scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput {
-        match self {
-            MyTask::Task(_) => MyOutput::None,
-            MyTask::Schedule(f) => f(scheduler_vec),
-        }
-    }
-}
+use cahotic::{CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask};
 
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
+    let cahotic = CahoticBuilder::default().build().unwrap();
 
-    // Scheduling 
-    let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+    // Scheduling
+    let mut poll1 = cahotic.scheduling_create_initial(DefaultTask(|| {
         sleep(Duration::from_millis(1000));
         println!("task 1 done");
-        MyOutput::None
+        DefaultOutput(10)
     }));
 
-    let mut poll2 = cahotic.scheduling_create_schedule(MyTask::Schedule(|_| {
+    let mut poll2 = cahotic.scheduling_create_schedule(DefaultSchedule(|_| {
         println!("task 2 done");
-        MyOutput::None
+        DefaultOutput(20)
     }));
 
     cahotic.schedule_after(&mut poll2, &mut poll1).unwrap();
@@ -58,17 +28,18 @@ fn main() {
     cahotic.join();
 }
 ```
+
 explanation:
 ```rust
-let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+let mut poll1 = cahotic.scheduling_create_initial(DefaultTask(|| {
     sleep(Duration::from_millis(1000));
     println!("task 1 done");
-    MyOutput::None
+    DefaultOutput(10)
 }));
 
-let mut poll2 = cahotic.scheduling_create_schedule(MyTask::Schedule(|_| {
+let mut poll2 = cahotic.scheduling_create_schedule(DefaultSchedule(|_| {
     println!("task 2 done");
-    MyOutput::None
+    DefaultOutput(20)
 }));
 ```
 Here we use 2 methods, including:
@@ -97,27 +68,27 @@ therefore the first rule of scheduling on `cahotic`:
 Every relation created in a task must follow the `DAG` concept, namely there must be no cycles in the graph.
 ```rust
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
+    let cahotic = CahoticBuilder::default().build().unwrap();
 
-    let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+    let mut poll1 = cahotic.scheduling_create_initial(DefaultTask(|| {
         sleep(Duration::from_millis(1000));
         println!("task 1 done");
-        MyOutput::None
+        DefaultOutput(10)
     }));
 
-    let mut poll2 = cahotic.scheduling_create_schedule(MyTask::Schedule(|_| {
+    let mut poll2 = cahotic.scheduling_create_schedule(DefaultSchedule(|_| {
         println!("task 2 done");
-        MyOutput::None
+        DefaultOutput(20)
     }));
 
     cahotic.schedule_after(&mut poll2, &mut poll1).unwrap();
 
-    let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|_| {
+    let mut poll3 = cahotic.scheduling_create_schedule(DefaultSchedule(|_| {
         println!("task 3 done");
-        MyOutput::None
+        DefaultOutput(30)
     }));
 
-    // terjadi siklus disini, menyebabkan task ini `cahotic` tersangkut
+    // a cycle occurs here, causing this task to get stuck `cahotic`
     cahotic.schedule_after(&mut poll3, &mut poll2).unwrap();
     cahotic.schedule_after(&mut poll2, &mut poll3).unwrap();
 
@@ -128,6 +99,7 @@ fn main() {
     cahotic.join();
 }
 ```
+
 can be seen in this line:
 ```rust
 cahotic.schedule_after(&mut poll3, &mut poll2).unwrap();
@@ -159,44 +131,45 @@ hence the third rule of scheduling on `cahotic`:
 *All schedules that have been created must be executed*
 
 ## Communication Between Schedules
+In scheduling, we use the `DefaultSchedule` provided by cahotic.
 let's look at this line:
 ```rust
-impl SchedulerTrait<MyOutput> for MyTask {
-    fn execute(&self, scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput {
-        match self {
-            MyTask::Task(_) => MyOutput::None,
-            MyTask::Schedule(f) => f(scheduler_vec),
-        }
+impl<O> SchedulerTrait<O> for DefaultSchedule<O>
+where
+    O: OutputTrait + 'static + Send,
+{
+    fn execute(&self, scheduler_vec: ScheduleVec<O>) -> O {
+        (self.0)(scheduler_vec)
     }
 }
 ```
 There is a struct `ScheduleVec<MyOutput>`, this will hold all the values returned by the dependent schedule.
 ```rust
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
+    let cahotic = CahoticBuilder::default().build().unwrap();
 
-    let mut poll1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+    let mut poll1 = cahotic.scheduling_create_initial(DefaultTask(|| {
         sleep(Duration::from_millis(1000));
         println!("task 1 done");
-        MyOutput::Result(10)
+        DefaultOutput(10)
     }));
 
-    let mut poll2 = cahotic.scheduling_create_initial(MyTask::Task(|| {
+    let mut poll2 = cahotic.scheduling_create_initial(DefaultTask(|| {
         sleep(Duration::from_millis(500));
         println!("task 2 done");
-        MyOutput::Result(20)
+        DefaultOutput(20)
     }));
 
     // For poll3, you can access the values of poll1 and poll2. poll3 must first depend on poll1 and poll2.
-    let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
+    let mut poll3 = cahotic.scheduling_create_schedule(DefaultSchedule(|schedule_vec| {
         // in accessing the index, based on the scheduling sequence with poll1 and poll2
-        let value_1 = schedule_vec.get(0);
-        let value_2 = schedule_vec.get(1);
+        let value_1 = schedule_vec.get(0).unwrap();
+        let value_2 = schedule_vec.get(1).unwrap();
         println!(
             "task 3 done, value1: {:?} and value: {:?}",
-            value_1, value_2
+            value_1.0, value_2.0
         );
-        MyOutput::None
+        DefaultOutput(0)
     }));
 
     // scheduling order will affect the index accessing poll1 and poll2 by poll3
@@ -210,18 +183,19 @@ fn main() {
     cahotic.join();
 }
 ```
+
 on this line
 ```rust
 // For poll3, you can access the values of poll1 and poll2. poll3 must first depend on poll1 and poll2.
-let mut poll3 = cahotic.scheduling_create_schedule(MyTask::Schedule(|schedule_vec| {
+let mut poll3 = cahotic.scheduling_create_schedule(DefaultSchedule(|schedule_vec| {
     // in accessing the index, based on the scheduling sequence with poll1 and poll2
-    let value_1 = schedule_vec.get(0);
-    let value_2 = schedule_vec.get(1);
+    let value_1 = schedule_vec.get(0).unwrap();
+    let value_2 = schedule_vec.get(1).unwrap();
     println!(
         "task 3 done, value1: {:?} and value: {:?}",
-        value_1, value_2
+        value_1.0, value_2.0
     );
-    MyOutput::None
+    DefaultOutput(0)
 }));
 
 // scheduling order will affect the index accessing poll1 and poll2 by poll3
@@ -252,12 +226,12 @@ then this becomes the 6th rule.
 If there is a normal schedule that is executed without any dependencies, then the schedule can still be executed but there is a cost to handle it, it is better to use the initial schedule.
 ```rust
 fn main() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 8>::init();
+    let cahotic = CahoticBuilder::default().build().unwrap();
 
     // poll will still be executed but has a cost for handling, use initial schedule.
-    let poll = cahotic.scheduling_create_schedule(MyTask::Schedule(|_| {
+    let poll = cahotic.scheduling_create_schedule(DefaultSchedule(|_| {
         println!("task done");
-        MyOutput::None
+        DefaultOutput(10)
     }));
 
     cahotic.schedule_exec(poll);

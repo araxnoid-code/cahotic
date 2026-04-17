@@ -1,20 +1,17 @@
 use std::{thread::sleep, time::Duration};
 
-use cahotic::{CahoticBuilder, DefaultOutput, DefaultTask};
+use cahotic::{CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask};
 
 fn main() {
-    let cahotic = CahoticBuilder::default::<i32>().build().unwrap();
+    let cahotic = CahoticBuilder::default().build().unwrap();
 
-    let poll = cahotic.spawn_task(DefaultTask(|| {
-        sleep(Duration::from_millis(1000));
-        println!("done!");
+    // poll masih akan dieksekusi namun memiliki cost untuk penanganannya, gunakan initial schedule.
+    let poll = cahotic.scheduling_create_schedule(DefaultSchedule(|_| {
+        println!("task done");
         DefaultOutput(10)
     }));
 
-    // Tidak akan terjadi pemblokiran, tetapi jika polling belum siap, maka akan mengembalikan Option::None
-    if let Some(value) = poll.get() {
-        println!("{:?}", value.0);
-    }
+    cahotic.schedule_exec(poll);
 
     cahotic.join();
 }
