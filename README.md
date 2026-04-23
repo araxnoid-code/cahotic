@@ -3,7 +3,7 @@
     <b><p>Thread Pool Management</p></b>
     <p>⚙️ under development ⚙️</p>
     <b>
-        <p>version / 0.3.0</p>
+        <p>version / 0.3.1</p>
     </b>
 </div>
 
@@ -11,10 +11,10 @@
 `cahotic`, thread pool management written in rust.
 
 ## Vesrion
-what's new with: [version/0.3.0](https://github.com/araxnoid-code/cahotic/blob/version/0.3.0/version.md)
+what's new with: [version/0.3.1](https://github.com/araxnoid-code/cahotic/blob/version/0.3.1/version.md)
 
 ## Guide 
-explanation of main features (English and Indonesian available): [guide.md](https://github.com/araxnoid-code/cahotic/blob/version/0.3.0/guide/guide.md)
+explanation of main features (English and Indonesian available): [guide.md](https://github.com/araxnoid-code/cahotic/blob/version/0.3.1/guide/guide.md)
 
 ## Starting
 ### Installation
@@ -24,7 +24,7 @@ cargo add cahotic
 ```
 Or add the following line to your Cargo.toml:
 ```toml
-cahotic = "0.3.0"
+cahotic = "0.3.1"
 ```
 
 ### Code
