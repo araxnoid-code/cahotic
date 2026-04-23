@@ -63,6 +63,7 @@ where
                             let output = Box::into_raw(Box::new(
                                 f.execute(ScheduleVec { vec: scheduler_vec }),
                             ));
+
                             schedule
                                 .return_ptr
                                 .unwrap()

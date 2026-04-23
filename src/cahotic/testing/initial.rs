@@ -31,7 +31,7 @@ impl SchedulerTrait<MyOutput> for MyTask {
 
 #[test]
 fn initial() {
-    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 4>::init();
+    let cahotic = Cahotic::<MyTask, MyTask, MyOutput, 4, 4096>::init().unwrap();
 
     // spawn task
     cahotic.spawn_task(MyTask::Task(|| MyOutput::None));

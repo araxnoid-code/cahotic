@@ -32,7 +32,10 @@ where
                 .store(quota_idx, Ordering::Relaxed);
 
             // update handler
-            self.in_task.fetch_add(1, Ordering::Release);
+            self.in_task.fetch_add(
+                1 + schedule.candidate_done_counter as u64,
+                Ordering::Release,
+            );
             // create return_ptr
             let return_ptr: &'static AtomicPtr<O> = schedule.return_ptr;
             // update quota counter

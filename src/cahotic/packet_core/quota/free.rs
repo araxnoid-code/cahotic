@@ -1,4 +1,5 @@
 use std::{
+    hint::spin_loop,
     ptr::null_mut,
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
@@ -15,7 +16,7 @@ where
             unsafe {
                 if let Some((return_ptr, candidate, poll_counter)) = self.drop_list[idx].take() {
                     drop(Box::from_raw(
-                        return_ptr.swap(null_mut(), Ordering::Relaxed),
+                        return_ptr.swap(null_mut(), Ordering::Acquire),
                     ));
 
                     drop(Box::from_raw(

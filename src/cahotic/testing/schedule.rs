@@ -1,6 +1,9 @@
 use std::{thread::sleep, time::Duration};
 
-use crate::{Cahotic, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait};
+use crate::{
+    Cahotic, CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask, OutputTrait, ScheduleVec,
+    SchedulerTrait, TaskTrait,
+};
 
 #[derive(Debug)]
 enum MyOutput {
@@ -34,7 +37,7 @@ impl SchedulerTrait<MyOutput> for MyTask {
 
 #[test]
 fn schedule_1() {
-    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4> = Cahotic::init();
+    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4, 4096> = Cahotic::init().unwrap();
 
     let mut poll_1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
         sleep(Duration::from_millis(500));
@@ -60,7 +63,7 @@ fn schedule_1() {
 
 #[test]
 fn schedule_2() {
-    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4> = Cahotic::init();
+    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4, 4096> = Cahotic::init().unwrap();
 
     let poll = cahotic.scheduling_create_schedule(MyTask::Schedule(|_| MyOutput::None));
     cahotic.schedule_exec(poll);
@@ -70,7 +73,7 @@ fn schedule_2() {
 
 #[test]
 fn schedule_3() {
-    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4> = Cahotic::init();
+    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4, 4096> = Cahotic::init().unwrap();
 
     // Testing 1
     for _ in 0..62 {
@@ -127,7 +130,7 @@ fn schedule_3() {
 
 #[test]
 fn schedule_4() {
-    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4> = Cahotic::init();
+    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4, 4096> = Cahotic::init().unwrap();
 
     let mut poll_1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
         sleep(Duration::from_millis(500));
@@ -161,7 +164,7 @@ fn schedule_4() {
 
 #[test]
 fn schedule_5() {
-    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4> = Cahotic::init();
+    let cahotic: Cahotic<MyTask, MyTask, MyOutput, 4, 4096> = Cahotic::init().unwrap();
 
     let mut poll_1 = cahotic.scheduling_create_initial(MyTask::Task(|| {
         sleep(Duration::from_millis(500));
@@ -201,6 +204,52 @@ fn schedule_5() {
     cahotic.schedule_exec(poll_2);
     sleep(Duration::from_millis(1000));
     cahotic.schedule_exec(poll_3);
+
+    cahotic.join();
+}
+
+#[test]
+fn schedule_6() {
+    let cahotic = CahoticBuilder::default::<usize>().build().unwrap();
+
+    let mut tensor_c = cahotic.scheduling_create_initial(DefaultTask(|| {
+        println!("done task {} + {} = {}", 10, 20, 10 + 20);
+        DefaultOutput(10 + 20)
+    }));
+
+    //
+
+    let mut tensor_d = cahotic.scheduling_create_schedule(DefaultSchedule(|dep| {
+        let c = dep.get(0).unwrap();
+
+        println!("done task {} + {} = {}", c.0, 20, c.0 + 20);
+        DefaultOutput(c.0 + 20)
+    }));
+    cahotic
+        .schedule_after(&mut tensor_d, &mut tensor_c)
+        .unwrap();
+
+    //
+
+    let mut tensor_e = cahotic.scheduling_create_schedule(DefaultSchedule(|dep| {
+        let c = dep.get(0).unwrap();
+        let d = dep.get(1).unwrap();
+
+        println!("done task {} + {} = {}", c.0, d.0, c.0 + d.0);
+        DefaultOutput(c.0 + d.0)
+    }));
+    cahotic
+        .schedule_after(&mut tensor_e, &mut tensor_c)
+        .unwrap();
+    cahotic
+        .schedule_after(&mut tensor_e, &mut tensor_d)
+        .unwrap();
+
+    //
+
+    cahotic.schedule_exec(tensor_e);
+    cahotic.schedule_exec(tensor_d);
+    cahotic.schedule_exec(tensor_c);
 
     cahotic.join();
 }

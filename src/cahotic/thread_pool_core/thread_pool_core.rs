@@ -93,8 +93,8 @@ where
             // clean
             // check, all task done
             loop {
-                if self.packet_core.in_task.load(Ordering::Acquire)
-                    <= self.done_task.load(Ordering::Acquire)
+                if self.packet_core.in_task.load(Ordering::Relaxed)
+                    <= self.done_task.load(Ordering::Relaxed)
                 {
                     break;
                 }
