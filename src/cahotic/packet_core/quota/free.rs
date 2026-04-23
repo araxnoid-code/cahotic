@@ -1,5 +1,4 @@
 use std::{
-    hint::spin_loop,
     ptr::null_mut,
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
