@@ -42,6 +42,7 @@ where
                     let quota = &mut (&mut (*self.packet_core.quota_list.load(Ordering::Relaxed)))
                         [drop_idx];
 
+                    println!("halo drop dilakukan oleh thread {}", self._id);
                     quota.free();
                 }
 

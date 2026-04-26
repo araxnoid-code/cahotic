@@ -117,9 +117,10 @@ where
             );
 
             if quota_idx < 64 {
+                println!("drop dilakukan oleh cahotic");
                 quota_list[quota_idx].free();
-                drop(quota_list);
             }
+            drop(quota_list);
 
             // clean schedule_list
             drop(Box::from_raw(

@@ -25,14 +25,14 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn push_to_quota(
+    pub(crate) fn push_to_quota(
         &self,
         value: (
             &'static AtomicPtr<O>,
             Option<&'static AtomicUsize>,
             Option<&'static AtomicUsize>,
         ),
-    ) {
+    ) -> usize {
         let counter =
             self.quota_counter.fetch_add(1, Ordering::Relaxed) as usize & (MAX_RING_BUFFER - 1);
 
@@ -46,5 +46,7 @@ where
             let quota_unit = &mut (&mut (*self.quota_list.load(Ordering::Relaxed)))[quota_use];
             quota_unit.push(value);
         }
+
+        quota_use
     }
 }
