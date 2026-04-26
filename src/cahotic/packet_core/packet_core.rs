@@ -57,7 +57,6 @@ where
 {
     pub fn init() -> PacketCore<F, FS, O, MAX_RING_BUFFER> {
         Self {
-            // handler
             in_task: Arc::new(AtomicU64::new(0)),
 
             schedule_list: AtomicPtr::new(Box::into_raw(Box::new(array::from_fn(|i| {
