@@ -51,7 +51,20 @@ where
                     }
                 }
 
-                self.done_task.fetch_add(1, Ordering::Relaxed);
+                unsafe {
+                    let quota_idx = task.drop_handler;
+                    let counter = (*self.packet_core.quota_list.load(Ordering::Relaxed))[quota_idx]
+                        .counter
+                        .fetch_sub(1, Ordering::Relaxed);
+
+                    if counter != 1 {
+                        self.done_task.fetch_add(1, Ordering::Relaxed);
+                    } else {
+                        self.packet_core
+                            .drop_bitmap
+                            .fetch_or(1 << quota_idx, Ordering::Release);
+                    }
+                }
             }
         }
     }

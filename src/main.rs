@@ -1,6 +1,6 @@
 use std::{thread::sleep, time::Duration};
 
-use cahotic::{CahoticBuilder, DefaultOutput, DefaultTask};
+use cahotic::{CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask, Job};
 
 fn main() {
     let cahotic = CahoticBuilder::default()
@@ -8,37 +8,35 @@ fn main() {
         .build()
         .unwrap();
 
-    for i in 0..64 * 100 {
+    for i in 0..61 {
         cahotic.spawn_task(DefaultTask(|| {
             sleep(Duration::from_millis(250));
             DefaultOutput(0)
         }));
     }
 
-    println!("done");
+    let job_1 = Job::create_job(DefaultSchedule(|_| {
+        sleep(Duration::from_millis(1000));
+        println!("1 done!");
+        DefaultOutput(10)
+    }));
 
-    // let job_1 = Job::create_job(DefaultSchedule(|_| {
-    //     sleep(Duration::from_millis(1000));
-    //     println!("1 done!");
-    //     DefaultOutput(10)
-    // }));
+    let job_2 = Job::create_job(DefaultSchedule(|_| {
+        sleep(Duration::from_millis(250));
+        println!("2 done!");
+        DefaultOutput(10)
+    }));
 
-    // let job_2 = Job::create_job(DefaultSchedule(|_| {
-    //     sleep(Duration::from_millis(250));
-    //     println!("2 done!");
-    //     DefaultOutput(10)
-    // }));
+    let job_3 = Job::create_job(DefaultSchedule(|_| {
+        println!("3 done!");
+        DefaultOutput(10)
+    }));
 
-    // let job_3 = Job::create_job(DefaultSchedule(|_| {
-    //     println!("3 done!");
-    //     DefaultOutput(10)
-    // }));
+    job_3.after(&job_1);
+    job_3.after(&job_2);
 
-    // job_3.after(&job_1);
-    // job_3.after(&job_2);
-
-    // cahotic.job_exec(job_1);
-    // cahotic.job_exec(job_2);
+    cahotic.job_exec(job_1);
+    cahotic.job_exec(job_2);
 
     cahotic.join();
 }
