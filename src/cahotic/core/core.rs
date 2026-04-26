@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    OutputTrait, PacketCore, PollWaiting, Schedule, SchedulerTrait, TaskTrait, ThreadPoolCore,
+    Job, OutputTrait, PacketCore, PollWaiting, Schedule, SchedulerTrait, TaskTrait, ThreadPoolCore,
 };
 
 pub struct Cahotic<F, FS, O, const N: usize, const MAX_RING_BUFFER: usize>
@@ -60,6 +60,10 @@ where
 
     pub fn scheduling_create_schedule(&self, schedule: FS) -> Schedule<F, FS, O> {
         self.packet_core.scheduling_create_schedule(schedule)
+    }
+
+    pub fn job_exec(&self, job: Job<FS, O>) {
+        self.packet_core.job_enqueue(job);
     }
 
     pub fn schedule_after(

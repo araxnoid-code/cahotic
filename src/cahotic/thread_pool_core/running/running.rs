@@ -18,6 +18,9 @@ where
                 break;
             }
 
+            // Job Running
+            self.job_running();
+
             // SCHEDULING
             self.schedule_poll();
 

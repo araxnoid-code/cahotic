@@ -34,6 +34,9 @@ where
     pub(crate) use_sch_idx: usize,
     pub(crate) masking_sch_idx: usize,
 
+    // Job
+    pub(crate) job_order: usize,
+
     // ring buffer
     pub(crate) order: usize,
 }

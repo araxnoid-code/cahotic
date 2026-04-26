@@ -67,6 +67,7 @@ where
                     masking_sch_idx: 64,
                     use_sch_idx: 64,
                     order: MAX_RING_BUFFER,
+                    job_order: MAX_RING_BUFFER,
                 };
 
                 while !block_clone.load(Ordering::Acquire) {
@@ -115,8 +116,10 @@ where
                     .swap(null_mut(), Ordering::Relaxed),
             );
 
-            quota_list[quota_idx].free();
-            drop(quota_list);
+            if quota_idx < 64 {
+                quota_list[quota_idx].free();
+                drop(quota_list);
+            }
 
             // clean schedule_list
             drop(Box::from_raw(

@@ -31,7 +31,7 @@ where
     pub fn init() -> JobUnit<F, FS, O> {
         Self {
             inner: None,
-            empty: AtomicBool::new(false),
+            empty: AtomicBool::new(true),
         }
     }
 }
