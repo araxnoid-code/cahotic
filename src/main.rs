@@ -4,9 +4,18 @@ use cahotic::{CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask, Job};
 
 fn main() {
     let cahotic = CahoticBuilder::default()
-        .set_workers::<8>()
+        .set_workers::<16>()
         .build()
         .unwrap();
+
+    for i in 0..64 * 100 {
+        cahotic.spawn_task(DefaultTask(|| {
+            sleep(Duration::from_millis(250));
+            DefaultOutput(0)
+        }));
+    }
+
+    println!("done");
 
     // let job_1 = Job::create_job(DefaultSchedule(|_| {
     //     sleep(Duration::from_millis(1000));
