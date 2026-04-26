@@ -52,14 +52,13 @@ where
             }
 
             let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
-            let drop_handler = self.push_to_quota((return_ptr, None, None));
 
             let waiting_task = WaitingTask {
                 _id: head,
                 task: ExecTask::Task(task),
                 return_ptr: Some(return_ptr),
                 poll_child: vec![],
-                drop_handler,
+                drop_handler: self.push_to_quota((return_ptr, None, None)),
             };
 
             packet.task = Some(waiting_task);
@@ -83,14 +82,13 @@ where
             }
 
             let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
-            let drop_handler = self.push_to_quota((return_ptr, None, None));
 
             let waiting_task = WaitingTask {
                 _id: head,
                 task: ExecTask::Task(task),
                 return_ptr: Some(return_ptr),
                 poll_child: vec![],
-                drop_handler,
+                drop_handler: self.push_to_quota((return_ptr, None, None)),
             };
 
             packet.task = Some(waiting_task);

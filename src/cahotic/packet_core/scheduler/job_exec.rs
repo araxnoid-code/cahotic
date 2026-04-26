@@ -57,13 +57,12 @@ where
                 spin_loop();
             }
 
-            // create waiting task
             let waiting_task = WaitingTask {
                 _id: head,
                 return_ptr: Some(job.inner.return_ptr),
                 task: ExecTask::Job(job.clone_inner()),
                 poll_child: vec![],
-                drop_handler: 0,
+                drop_handler: self.push_to_quota((job.inner.return_ptr, None, None)),
             };
 
             job_unit.inner = Some(waiting_task);
