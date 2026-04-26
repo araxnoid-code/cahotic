@@ -48,6 +48,7 @@ where
 
     /// serves to store QuotaUnits that are being used by PacketCore
     pub(crate) use_quota: AtomicUsize,
+    pub(crate) quota_counter: AtomicU64,
 
     /// serves to mark and notify the location of QuotaUnits that are ready to be cleaned,
     /// will be checked by the thread pool periodically
@@ -91,6 +92,7 @@ where
             tail: TailRingBuffer::default(),
 
             use_quota: AtomicUsize::new(64),
+            quota_counter: AtomicU64::new(0),
             quota_bitmap: AtomicU64::new(u64::MAX),
             quota_list: AtomicPtr::new(Box::into_raw(Box::new(array::from_fn(|_| {
                 QuotaUnit::default()
