@@ -98,7 +98,7 @@ where
 }
 
 /// InnerJob
-pub(crate) struct InnerJob<FS, O>
+pub struct InnerJob<FS, O>
 where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,

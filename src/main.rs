@@ -1,6 +1,6 @@
 use std::{thread::sleep, time::Duration};
 
-use cahotic::{CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask, Job};
+use cahotic::{CahoticBuilder, DefaultOutput, DefaultTask};
 
 fn main() {
     let cahotic = CahoticBuilder::default()

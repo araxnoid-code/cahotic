@@ -43,26 +43,17 @@ where
 
     pub fn enqueue(&self, task: F) -> PollWaiting<O> {
         unsafe {
-            // let mut quota_idx = self.use_quota.load(Ordering::Relaxed);
+            self.in_task.fetch_add(1, Ordering::Release);
             let head = self.head.fetch_add(1, Ordering::Relaxed) & (MAX_RING_BUFFER - 1) as u64;
-            // if (head & ((MAX_RING_BUFFER >> 6) - 1) as u64) == 0 {
-            //     quota_idx = self.get_quota_use();
-            // }
 
             let packet = &mut (&mut (*self.ring_buffer.load(Ordering::Relaxed)))[head as usize];
-            // let quota = &mut (&mut (*self.quota_list.load(Ordering::Relaxed)))[quota_idx];
             while !packet.empty.load(Ordering::Acquire) {
                 spin_loop();
             }
 
-            // update handler
-            self.in_task.fetch_add(1, Ordering::Release);
-            // create return_ptr
             let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
-
             let drop_handler = self.push_to_quota((return_ptr, None, None));
 
-            // create waiting task
             let waiting_task = WaitingTask {
                 _id: head,
                 task: ExecTask::Task(task),
@@ -72,8 +63,6 @@ where
             };
 
             packet.task = Some(waiting_task);
-            // quota.push((return_ptr, None, None));
-
             packet.empty.store(false, Ordering::Release);
 
             PollWaiting {
@@ -84,34 +73,27 @@ where
 
     pub fn try_enqueue(&self, task: F) -> Result<PollWaiting<O>, TryEnqueueStatus> {
         unsafe {
-            let mut quota_idx = self.use_quota.load(Ordering::Relaxed);
+            self.in_task.fetch_add(1, Ordering::Release);
             let head = self.head.fetch_add(1, Ordering::Relaxed) & (MAX_RING_BUFFER - 1) as u64;
-            if (head & ((MAX_RING_BUFFER >> 6) - 1) as u64) == 0 {
-                quota_idx = self.try_get_quota_use()?;
-            }
 
             let packet = &mut (&mut (*self.ring_buffer.load(Ordering::Relaxed)))[head as usize];
-            let quota = &mut (&mut (*self.quota_list.load(Ordering::Relaxed)))[quota_idx];
             if !packet.empty.load(Ordering::Acquire) {
+                self.in_task.fetch_sub(1, Ordering::Release);
                 return Err(TryEnqueueStatus::RingBufferFull);
             }
 
-            // update handler
-            self.in_task.fetch_add(1, Ordering::Release);
-            // create return_ptr
             let return_ptr: &'static AtomicPtr<O> = Box::leak(Box::new(AtomicPtr::new(null_mut())));
+            let drop_handler = self.push_to_quota((return_ptr, None, None));
 
-            // create waiting task
             let waiting_task = WaitingTask {
                 _id: head,
                 task: ExecTask::Task(task),
                 return_ptr: Some(return_ptr),
                 poll_child: vec![],
-                drop_handler: quota_idx,
+                drop_handler,
             };
 
             packet.task = Some(waiting_task);
-            quota.push((return_ptr, None, None));
             packet.empty.store(false, Ordering::Release);
 
             Ok(PollWaiting {
