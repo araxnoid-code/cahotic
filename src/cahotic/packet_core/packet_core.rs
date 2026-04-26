@@ -8,8 +8,8 @@ use std::{
 };
 
 use crate::{
-    HeadRingBuffer, OutputTrait, Packet, QuotaUnit, ScheduleSlot, SchedulerTrait, TailRingBuffer,
-    TaskTrait,
+    HeadRingBuffer, InnerJob, JobCounter, JobUnit, OutputTrait, Packet, QuotaUnit, ScheduleSlot,
+    SchedulerTrait, TailRingBuffer, TaskTrait,
 };
 
 /// PacketCore. The structure that manages tasks, from spawned tasks, registered schedules, join mechanisms, and quotas.
@@ -29,6 +29,11 @@ where
     pub(crate) schedule_list: AtomicPtr<[ScheduleSlot<F, FS, O>; 64]>,
     pub(crate) allo_schedule_bitmap: AtomicU64,
     pub(crate) poll_schedule_bitmap: AtomicU64,
+
+    /// Job
+    pub(crate) job_ring_buffer: AtomicPtr<Vec<JobUnit<F, FS, O>>>,
+    pub(crate) job_head: JobCounter,
+    pub(crate) job_tail: JobCounter,
 
     // ring buffer
     pub(crate) ring_buffer: AtomicPtr<Vec<Packet<F, FS, O>>>,
@@ -66,6 +71,15 @@ where
             drop_bitmap: AtomicU64::new(0),
             allo_schedule_bitmap: AtomicU64::new(u64::MAX),
             poll_schedule_bitmap: AtomicU64::new(0),
+
+            job_ring_buffer: AtomicPtr::new(Box::into_raw(Box::new(
+                (0..MAX_RING_BUFFER)
+                    .into_iter()
+                    .map(|id| JobUnit::init())
+                    .collect(),
+            ))),
+            job_head: JobCounter::default(),
+            job_tail: JobCounter::default(),
 
             ring_buffer: AtomicPtr::new(Box::into_raw(Box::new(
                 (0..MAX_RING_BUFFER)

@@ -1,10 +1,13 @@
 use std::{
     hint::spin_loop,
-    sync::atomic::{AtomicPtr, Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicPtr, Ordering},
+    },
 };
 
 use crate::{
-    ExecTask, OutputTrait, PacketCore, PollWaiting, Schedule, ScheduleTask, SchedulerTrait,
+    ExecTask, Job, OutputTrait, PacketCore, PollWaiting, Schedule, ScheduleTask, SchedulerTrait,
     TaskTrait, WaitingTask,
 };
 
@@ -14,6 +17,32 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
+    pub fn job_enqueue(&self, job: Job<FS, O>) {
+        unsafe {
+            self.in_task.fetch_add(1, Ordering::Relaxed);
+            let head = self.job_head.fetch_add(1, Ordering::Relaxed) & (MAX_RING_BUFFER - 1) as u64;
+
+            let job_unit =
+                &mut (&mut (*self.job_ring_buffer.load(Ordering::Relaxed)))[head as usize];
+
+            while !job_unit.empty.load(Ordering::Acquire) {
+                spin_loop();
+            }
+
+            // create waiting task
+            let waiting_task = WaitingTask {
+                _id: head,
+                return_ptr: Some(job.inner.return_ptr),
+                task: ExecTask::Job(job.clone_inner()),
+                poll_child: vec![],
+                drop_handler: 0,
+            };
+
+            job_unit.inner = Some(waiting_task);
+            job_unit.empty.store(false, Ordering::Relaxed);
+        }
+    }
+
     pub fn schedule_enqueue(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
         unsafe {
             let mut quota_idx = self.use_quota.load(Ordering::Relaxed);

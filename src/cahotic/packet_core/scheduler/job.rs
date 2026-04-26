@@ -1,13 +1,61 @@
 use std::{
     cell::RefCell,
+    ops::Deref,
     ptr::null_mut,
     sync::{
         Arc,
-        atomic::{AtomicPtr, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering},
     },
 };
 
-use crate::{OutputTrait, SchedulerTrait};
+use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
+
+/// JobUnit
+#[repr(align(64))]
+pub(crate) struct JobUnit<F, FS, O>
+where
+    F: TaskTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
+    O: 'static + OutputTrait + Send,
+{
+    pub(crate) inner: Option<WaitingTask<F, FS, O>>,
+    pub(crate) empty: AtomicBool,
+}
+
+impl<F, FS, O> JobUnit<F, FS, O>
+where
+    F: TaskTrait<O> + Send + 'static,
+    FS: SchedulerTrait<O> + Send + 'static,
+    O: 'static + OutputTrait + Send,
+{
+    pub fn init() -> JobUnit<F, FS, O> {
+        Self {
+            inner: None,
+            empty: AtomicBool::new(false),
+        }
+    }
+}
+
+/// JobCounter
+#[repr(align(64))]
+pub(crate) struct JobCounter {
+    head: AtomicU64,
+}
+
+impl Default for JobCounter {
+    fn default() -> Self {
+        Self {
+            head: AtomicU64::new(0),
+        }
+    }
+}
+
+impl Deref for JobCounter {
+    type Target = AtomicU64;
+    fn deref(&self) -> &Self::Target {
+        &self.head
+    }
+}
 
 /// Job
 pub struct Job<FS, O>
@@ -15,7 +63,7 @@ where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    inner: Arc<InnerJob<FS, O>>,
+    pub(crate) inner: Arc<InnerJob<FS, O>>,
 }
 
 impl<FS, O> Job<FS, O>
@@ -39,7 +87,7 @@ where
         job.inner.job_list.borrow_mut().push(self.clone_inner());
     }
 
-    //
+    // additional methods
     pub fn inner(&self) -> &Arc<InnerJob<FS, O>> {
         &self.inner
     }
@@ -50,16 +98,16 @@ where
 }
 
 /// InnerJob
-struct InnerJob<FS, O>
+pub(crate) struct InnerJob<FS, O>
 where
     FS: SchedulerTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    task: FS,
-    counter: AtomicUsize,
-    job_list: RefCell<Vec<Arc<InnerJob<FS, O>>>>,
-    return_ptr: &'static AtomicPtr<O>,
-    return_ptr_list: RefCell<Vec<&'static AtomicPtr<O>>>,
+    pub(crate) task: FS,
+    pub(crate) counter: AtomicUsize,
+    pub(crate) job_list: RefCell<Vec<Arc<InnerJob<FS, O>>>>,
+    pub(crate) return_ptr: &'static AtomicPtr<O>,
+    pub(crate) return_ptr_list: RefCell<Vec<&'static AtomicPtr<O>>>,
 }
 
 impl<FS, O> InnerJob<FS, O>

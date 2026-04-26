@@ -20,7 +20,7 @@ where
     Sceduler(AtomicPtr<O>, &'static AtomicUsize),
 }
 
-// WaitingTask
+/// WaitingTask. as the main struct managed by PacketCore and executed in ThreadPoolCore
 pub struct WaitingTask<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
