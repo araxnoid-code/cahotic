@@ -53,18 +53,6 @@ where
                     let output = Box::into_raw(Box::new(f.execute()));
                     task.return_ptr.unwrap().store(output, Ordering::Release);
 
-                    // update child
-                    let poll_child = task.poll_child;
-                    for (counter, schedule_idx) in poll_child {
-                        let counter = counter.fetch_sub(1, Ordering::Release);
-                        if counter == 1 {
-                            let masking = 1_u64 << schedule_idx;
-                            self.packet_core
-                                .poll_schedule_bitmap
-                                .fetch_or(masking, Ordering::Release);
-                        }
-                    }
-
                     // drop packet
                     unsafe {
                         let quota_idx = task.drop_handler;

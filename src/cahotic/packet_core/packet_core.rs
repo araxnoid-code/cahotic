@@ -8,8 +8,8 @@ use std::{
 };
 
 use crate::{
-    HeadRingBuffer, InnerJob, JobCounter, JobUnit, OutputTrait, Packet, QuotaUnit, ScheduleSlot,
-    JobTrait, TailRingBuffer, TaskTrait,
+    HeadRingBuffer, JobCounter, JobTrait, JobUnit, OutputTrait, Packet, QuotaUnit, TailRingBuffer,
+    TaskTrait,
 };
 
 /// PacketCore. The structure that manages tasks, from spawned tasks, registered schedules, join mechanisms, and quotas.
@@ -24,11 +24,6 @@ where
     /// note: not only does it calculate the task roughly,
     /// this property is also influenced by the scheduling and drop mechanisms
     pub(crate) in_task: Arc<AtomicU64>,
-
-    // // schedule
-    pub(crate) schedule_list: AtomicPtr<[ScheduleSlot<F, FS, O>; 64]>,
-    pub(crate) allo_schedule_bitmap: AtomicU64,
-    pub(crate) poll_schedule_bitmap: AtomicU64,
 
     /// Job
     pub(crate) job_ring_buffer: AtomicPtr<Vec<JobUnit<F, FS, O>>>,
@@ -65,18 +60,12 @@ where
         Self {
             in_task: Arc::new(AtomicU64::new(0)),
 
-            schedule_list: AtomicPtr::new(Box::into_raw(Box::new(array::from_fn(|i| {
-                ScheduleSlot::init(i)
-            })))),
-
             drop_bitmap: AtomicU64::new(0),
-            allo_schedule_bitmap: AtomicU64::new(u64::MAX),
-            poll_schedule_bitmap: AtomicU64::new(0),
 
             job_ring_buffer: AtomicPtr::new(Box::into_raw(Box::new(
                 (0..MAX_RING_BUFFER)
                     .into_iter()
-                    .map(|id| JobUnit::init())
+                    .map(|_| JobUnit::init())
                     .collect(),
             ))),
             job_head: JobCounter::default(),

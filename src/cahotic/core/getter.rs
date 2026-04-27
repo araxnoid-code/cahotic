@@ -1,6 +1,6 @@
 use std::sync::atomic::Ordering;
 
-use crate::{Cahotic, OutputTrait, JobTrait, TaskTrait};
+use crate::{Cahotic, JobTrait, OutputTrait, TaskTrait};
 
 impl<F, FS, O, const N: usize, const MAX_RING_BUFFER: usize> Cahotic<F, FS, O, N, MAX_RING_BUFFER>
 where
@@ -9,14 +9,6 @@ where
     O: 'static + OutputTrait + Send + Sync,
 {
     // bitmap
-    pub fn get_allo_schedule_bitmap(&self, order: Ordering) -> u64 {
-        self.packet_core.allo_schedule_bitmap.load(order)
-    }
-
-    pub fn get_poll_schedule_bitmap(&self, order: Ordering) -> u64 {
-        self.packet_core.poll_schedule_bitmap.load(order)
-    }
-
     pub fn get_quota_bitmap(&self, order: Ordering) -> u64 {
         self.packet_core.quota_bitmap.load(order)
     }

@@ -3,5 +3,5 @@ mod task;
 mod waiting_task;
 
 pub use poll_waiting::*;
-pub use task::*;
+pub(crate) use task::*;
 pub use waiting_task::*;

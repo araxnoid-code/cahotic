@@ -57,7 +57,6 @@ where
                 _id: head,
                 task: ExecTask::Task(task),
                 return_ptr: Some(return_ptr),
-                poll_child: vec![],
                 drop_handler: self.push_to_quota((return_ptr, None, None)),
             };
 
@@ -87,7 +86,6 @@ where
                 _id: head,
                 task: ExecTask::Task(task),
                 return_ptr: Some(return_ptr),
-                poll_child: vec![],
                 drop_handler: self.push_to_quota((return_ptr, None, None)),
             };
 

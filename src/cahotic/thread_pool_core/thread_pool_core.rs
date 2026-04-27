@@ -63,9 +63,6 @@ where
                     use_drop_idx: 64,
                     masking_drop_idx: 64,
                     drop_counter: 0,
-                    sch_counter: 0,
-                    masking_sch_idx: 64,
-                    use_sch_idx: 64,
                     order: MAX_RING_BUFFER,
                     job_order: MAX_RING_BUFFER,
                 };
@@ -121,13 +118,6 @@ where
                 quota_list[quota_idx].free();
             }
             drop(quota_list);
-
-            // clean schedule_list
-            drop(Box::from_raw(
-                self.packet_core
-                    .schedule_list
-                    .swap(null_mut(), Ordering::Relaxed),
-            ));
         }
     }
 }

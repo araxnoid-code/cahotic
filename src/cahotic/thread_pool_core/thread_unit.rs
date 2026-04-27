@@ -29,10 +29,6 @@ where
     pub(crate) drop_counter: usize,
     pub(crate) use_drop_idx: usize,
     pub(crate) masking_drop_idx: usize,
-    // // schedule
-    pub(crate) sch_counter: usize,
-    pub(crate) use_sch_idx: usize,
-    pub(crate) masking_sch_idx: usize,
 
     // Job
     pub(crate) job_order: usize,

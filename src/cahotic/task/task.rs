@@ -1,7 +1,4 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicPtr, AtomicUsize},
-};
+use std::sync::Arc;
 
 use crate::{InnerJob, JobTrait, OutputTrait, TaskTrait};
 
