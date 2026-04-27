@@ -1,11 +1,11 @@
 use std::sync::atomic::Ordering;
 
-use crate::{Cahotic, OutputTrait, SchedulerTrait, TaskTrait};
+use crate::{Cahotic, OutputTrait, JobTrait, TaskTrait};
 
 impl<F, FS, O, const N: usize, const MAX_RING_BUFFER: usize> Cahotic<F, FS, O, N, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
-    FS: SchedulerTrait<O> + Send + 'static + Sync,
+    FS: JobTrait<O> + Send + 'static + Sync,
     O: 'static + OutputTrait + Send + Sync,
 {
     // bitmap

@@ -1,12 +1,12 @@
 use std::sync::atomic::AtomicBool;
 
-use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
+use crate::{OutputTrait, JobTrait, TaskTrait, WaitingTask};
 
 #[repr(align(64))]
 pub struct ScheduleSlot<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     // id
@@ -20,7 +20,7 @@ where
 impl<F, FS, O> ScheduleSlot<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn init(id: usize) -> ScheduleSlot<F, FS, O> {

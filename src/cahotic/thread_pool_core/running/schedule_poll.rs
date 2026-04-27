@@ -1,11 +1,11 @@
 use std::sync::atomic::Ordering;
 
-use crate::{ExecTask, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait, ThreadUnit};
+use crate::{ExecTask, JobVec, OutputTrait, JobTrait, TaskTrait, ThreadUnit};
 
 impl<F, FD, O, const MAX_RING_BUFFER: usize> ThreadUnit<F, FD, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + 'static + Send,
-    FD: SchedulerTrait<O> + Send + 'static,
+    FD: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn get_idx_sch(&mut self) {
@@ -60,9 +60,8 @@ where
                         if let ExecTask::Scheduling(f, scheduler_vec, _, candidate_packet_idx) =
                             schedule.task
                         {
-                            let output = Box::into_raw(Box::new(
-                                f.execute(ScheduleVec { vec: scheduler_vec }),
-                            ));
+                            let output =
+                                Box::into_raw(Box::new(f.execute(JobVec { vec: scheduler_vec })));
 
                             schedule
                                 .return_ptr

@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use crate::{
-    Job, OutputTrait, PacketCore, PollWaiting, Schedule, SchedulerTrait, TaskTrait, ThreadPoolCore,
-};
+use crate::{Job, JobTrait, OutputTrait, PacketCore, PollWaiting, TaskTrait, ThreadPoolCore};
 
 pub struct Cahotic<F, FS, O, const N: usize, const MAX_RING_BUFFER: usize>
 where
     F: TaskTrait<O> + 'static + Send,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     // task Core
@@ -20,7 +18,7 @@ where
 impl<F, FS, O, const N: usize, const MAX_RING_BUFFER: usize> Cahotic<F, FS, O, N, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
-    FS: SchedulerTrait<O> + Send + 'static + Sync,
+    FS: JobTrait<O> + Send + 'static + Sync,
     O: 'static + OutputTrait + Send + Sync,
 {
     pub fn init() -> Result<Cahotic<F, FS, O, N, MAX_RING_BUFFER>, &'static str> {
@@ -49,29 +47,9 @@ where
         self.packet_core.try_enqueue(f)
     }
 
-    // scheduling
-    pub fn schedule_exec(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {
-        self.packet_core.schedule_exec(schedule)
-    }
-
-    pub fn scheduling_create_initial(&self, task: F) -> Schedule<F, FS, O> {
-        self.packet_core.scheduling_create_initial(task)
-    }
-
-    pub fn scheduling_create_schedule(&self, schedule: FS) -> Schedule<F, FS, O> {
-        self.packet_core.scheduling_create_schedule(schedule)
-    }
-
+    // job
     pub fn job_exec(&self, job: Job<FS, O>) {
         self.packet_core.job_enqueue(job);
-    }
-
-    pub fn schedule_after(
-        &self,
-        schedule: &mut Schedule<F, FS, O>,
-        after: &mut Schedule<F, FS, O>,
-    ) -> Result<(), &str> {
-        self.packet_core.schedule_after(schedule, after)
     }
 
     // end

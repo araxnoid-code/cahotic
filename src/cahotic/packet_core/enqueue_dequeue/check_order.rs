@@ -1,11 +1,11 @@
 use std::sync::atomic::Ordering;
 
-use crate::{DequeueStatus, OutputTrait, PacketCore, SchedulerTrait, TaskTrait};
+use crate::{DequeueStatus, OutputTrait, PacketCore, JobTrait, TaskTrait};
 
 impl<F, FS, O, const MAX_RING_BUFFER: usize> PacketCore<F, FS, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn check_order(&self, order: usize) -> DequeueStatus<F, FS, O> {

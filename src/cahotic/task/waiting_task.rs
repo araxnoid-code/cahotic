@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicPtr, AtomicUsize};
 
-use crate::{ExecTask, SchedulerTrait};
+use crate::{ExecTask, JobTrait};
 
 // task
 pub trait OutputTrait {}
@@ -24,7 +24,7 @@ where
 pub struct WaitingTask<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub(crate) _id: u64,

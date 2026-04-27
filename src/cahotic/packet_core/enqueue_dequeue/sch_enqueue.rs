@@ -7,14 +7,14 @@ use std::{
 };
 
 use crate::{
-    ExecTask, Job, OutputTrait, PacketCore, PollWaiting, Schedule, ScheduleTask, SchedulerTrait,
+    ExecTask, Job, JobTrait, OutputTrait, PacketCore, PollWaiting, Schedule, ScheduleTask,
     TaskTrait, WaitingTask,
 };
 
 impl<F, FS, O, const MAX_RING_BUFFER: usize> PacketCore<F, FS, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn schedule_enqueue(&self, schedule: Schedule<F, FS, O>) -> PollWaiting<O> {

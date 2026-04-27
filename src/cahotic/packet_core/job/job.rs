@@ -8,14 +8,14 @@ use std::{
     },
 };
 
-use crate::{OutputTrait, SchedulerTrait, TaskTrait, WaitingTask};
+use crate::{OutputTrait, TaskTrait, WaitingTask};
 
 /// JobUnit
 #[repr(align(64))]
 pub(crate) struct JobUnit<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub(crate) inner: Option<WaitingTask<F, FS, O>>,
@@ -25,7 +25,7 @@ where
 impl<F, FS, O> JobUnit<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn init() -> JobUnit<F, FS, O> {
@@ -60,7 +60,7 @@ impl Deref for JobCounter {
 /// Job
 pub struct Job<FS, O>
 where
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub(crate) inner: Arc<InnerJob<FS, O>>,
@@ -68,7 +68,7 @@ where
 
 impl<FS, O> Job<FS, O>
 where
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn create_job(task: FS) -> Job<FS, O> {
@@ -105,7 +105,7 @@ where
 /// InnerJob
 pub struct InnerJob<FS, O>
 where
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub(crate) task: FS,
@@ -120,7 +120,7 @@ where
 
 impl<FS, O> InnerJob<FS, O>
 where
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn create_job(task: FS) -> InnerJob<FS, O> {
@@ -140,4 +140,34 @@ where
         let idx = self.parent_quota_head.fetch_add(1, Ordering::Relaxed);
         self.parent_quota.borrow()[idx].store(quota_idx, Ordering::Relaxed);
     }
+}
+
+///
+pub struct JobVec<O>
+where
+    O: 'static + OutputTrait + Send,
+{
+    pub(crate) vec: Vec<&'static AtomicPtr<O>>,
+}
+
+impl<O> JobVec<O>
+where
+    O: 'static + OutputTrait + Send,
+{
+    pub fn get(&self, idx: usize) -> Option<&O> {
+        unsafe {
+            if let Some(ptr) = self.vec.get(idx) {
+                Some(&*ptr.load(Ordering::Acquire))
+            } else {
+                None
+            }
+        }
+    }
+}
+
+pub trait JobTrait<O>
+where
+    O: OutputTrait + 'static + Send,
+{
+    fn execute(&self, scheduler_vec: JobVec<O>) -> O;
 }

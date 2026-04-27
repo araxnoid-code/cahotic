@@ -3,12 +3,12 @@ use std::sync::{
     atomic::{AtomicBool, AtomicU64},
 };
 
-use crate::{OutputTrait, PacketCore, SchedulerTrait, TaskTrait};
+use crate::{JobTrait, OutputTrait, PacketCore, TaskTrait};
 
 pub struct ThreadUnit<F, FS, O, const MAX_RING_BUFFER: usize>
 where
     F: TaskTrait<O> + 'static + Send,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     // thread

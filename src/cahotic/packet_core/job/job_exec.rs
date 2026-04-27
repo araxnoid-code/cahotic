@@ -1,13 +1,13 @@
 use std::{hint::spin_loop, sync::atomic::Ordering};
 
 use crate::{
-    DequeueStatus, ExecTask, Job, OutputTrait, PacketCore, SchedulerTrait, TaskTrait, WaitingTask,
+    DequeueStatus, ExecTask, Job, JobTrait, OutputTrait, PacketCore, TaskTrait, WaitingTask,
 };
 
 impl<F, FS, O, const MAX_RING_BUFFER: usize> PacketCore<F, FS, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn check_job_order(&self, order: usize) -> DequeueStatus<F, FS, O> {

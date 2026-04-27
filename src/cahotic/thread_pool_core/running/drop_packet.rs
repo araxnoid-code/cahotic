@@ -1,11 +1,11 @@
 use std::sync::atomic::Ordering;
 
-use crate::{OutputTrait, SchedulerTrait, TaskTrait, ThreadUnit};
+use crate::{JobTrait, OutputTrait, TaskTrait, ThreadUnit};
 
 impl<F, FD, O, const MAX_RING_BUFFER: usize> ThreadUnit<F, FD, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + 'static + Send,
-    FD: SchedulerTrait<O> + Send + 'static,
+    FD: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn get_idx_drop(&mut self) {

@@ -3,21 +3,15 @@ use std::sync::{
     atomic::{AtomicPtr, AtomicUsize},
 };
 
-use crate::{InnerJob, OutputTrait, SchedulerTrait, TaskTrait};
+use crate::{InnerJob, JobTrait, OutputTrait, TaskTrait};
 
 /// ExecTask
 pub(crate) enum ExecTask<F, FS, O>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     Task(F),
-    Scheduling(
-        FS,
-        Vec<&'static AtomicPtr<O>>,
-        usize,
-        Vec<&'static AtomicUsize>,
-    ),
     Job(Arc<InnerJob<FS, O>>),
 }

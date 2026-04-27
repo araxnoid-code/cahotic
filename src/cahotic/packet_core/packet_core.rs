@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     HeadRingBuffer, InnerJob, JobCounter, JobUnit, OutputTrait, Packet, QuotaUnit, ScheduleSlot,
-    SchedulerTrait, TailRingBuffer, TaskTrait,
+    JobTrait, TailRingBuffer, TaskTrait,
 };
 
 /// PacketCore. The structure that manages tasks, from spawned tasks, registered schedules, join mechanisms, and quotas.
@@ -17,7 +17,7 @@ use crate::{
 pub struct PacketCore<F, FS, O, const MAX_RING_BUFFER: usize>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     /// calculates each task to be executed.
@@ -58,7 +58,7 @@ where
 impl<F, FS, O, const MAX_RING_BUFFER: usize> PacketCore<F, FS, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn init() -> PacketCore<F, FS, O, MAX_RING_BUFFER> {

@@ -1,8 +1,8 @@
 use std::{thread::sleep, time::Duration};
 
 use crate::{
-    Cahotic, CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask, OutputTrait, ScheduleVec,
-    SchedulerTrait, TaskTrait,
+    Cahotic, CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask, JobVec, OutputTrait,
+    JobTrait, TaskTrait,
 };
 
 #[derive(Debug)]
@@ -14,7 +14,7 @@ impl OutputTrait for MyOutput {}
 
 enum MyTask {
     Task(fn() -> MyOutput),
-    Schedule(fn(scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput),
+    Schedule(fn(scheduler_vec: JobVec<MyOutput>) -> MyOutput),
 }
 
 impl TaskTrait<MyOutput> for MyTask {
@@ -26,8 +26,8 @@ impl TaskTrait<MyOutput> for MyTask {
     }
 }
 
-impl SchedulerTrait<MyOutput> for MyTask {
-    fn execute(&self, scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput {
+impl JobTrait<MyOutput> for MyTask {
+    fn execute(&self, scheduler_vec: JobVec<MyOutput>) -> MyOutput {
         match self {
             MyTask::Task(_) => MyOutput::None,
             MyTask::Schedule(f) => f(scheduler_vec),

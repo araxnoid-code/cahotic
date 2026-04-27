@@ -9,12 +9,12 @@ use std::{
     thread::{JoinHandle, spawn},
 };
 
-use crate::{OutputTrait, PacketCore, SchedulerTrait, TaskTrait, ThreadUnit};
+use crate::{JobTrait, OutputTrait, PacketCore, TaskTrait, ThreadUnit};
 
 pub struct ThreadPoolCore<F, FD, O, const N: usize, const MAX_RING_BUFFER: usize>
 where
     F: TaskTrait<O> + 'static + Send,
-    FD: SchedulerTrait<O> + Send + 'static,
+    FD: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     // main thread pool
@@ -32,7 +32,7 @@ impl<F, FD, O, const N: usize, const MAX_RING_BUFFER: usize>
     ThreadPoolCore<F, FD, O, N, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
-    FD: SchedulerTrait<O> + Send + 'static + Sync,
+    FD: JobTrait<O> + Send + 'static + Sync,
     O: OutputTrait + Send + Sync,
 {
     pub fn init(

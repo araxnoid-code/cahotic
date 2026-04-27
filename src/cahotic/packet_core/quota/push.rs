@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 
-use crate::{OutputTrait, PacketCore, QuotaUnit, SchedulerTrait, TaskTrait};
+use crate::{JobTrait, OutputTrait, PacketCore, QuotaUnit, TaskTrait};
 
 impl<O, const MAX_RING_BUFFER: usize> QuotaUnit<O, MAX_RING_BUFFER>
 where
@@ -22,7 +22,7 @@ where
 impl<F, FS, O, const MAX_RING_BUFFER: usize> PacketCore<F, FS, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub(crate) fn push_to_quota(

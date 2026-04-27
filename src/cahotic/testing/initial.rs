@@ -1,4 +1,4 @@
-use crate::{Cahotic, OutputTrait, ScheduleVec, SchedulerTrait, TaskTrait};
+use crate::{Cahotic, JobVec, OutputTrait, JobTrait, TaskTrait};
 
 enum MyOutput {
     _Result(i32),
@@ -8,7 +8,7 @@ impl OutputTrait for MyOutput {}
 
 enum MyTask {
     Task(fn() -> MyOutput),
-    _Schedule(fn(scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput),
+    _Schedule(fn(scheduler_vec: JobVec<MyOutput>) -> MyOutput),
 }
 
 impl TaskTrait<MyOutput> for MyTask {
@@ -20,8 +20,8 @@ impl TaskTrait<MyOutput> for MyTask {
     }
 }
 
-impl SchedulerTrait<MyOutput> for MyTask {
-    fn execute(&self, scheduler_vec: ScheduleVec<MyOutput>) -> MyOutput {
+impl JobTrait<MyOutput> for MyTask {
+    fn execute(&self, scheduler_vec: JobVec<MyOutput>) -> MyOutput {
         match self {
             MyTask::Task(_) => MyOutput::None,
             MyTask::_Schedule(f) => f(scheduler_vec),

@@ -5,14 +5,14 @@ use std::{
 };
 
 use crate::{
-    ExecTask, OutputTrait, PacketCore, PollWaiting, SchedulerTrait, TaskTrait, TryEnqueueStatus,
+    ExecTask, JobTrait, OutputTrait, PacketCore, PollWaiting, TaskTrait, TryEnqueueStatus,
     WaitingTask,
 };
 
 impl<F, FS, O, const MAX_RING_BUFFER: usize> PacketCore<F, FS, O, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + Send + 'static,
-    FS: SchedulerTrait<O> + Send + 'static,
+    FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
     pub fn get_quota_use(&self) -> usize {

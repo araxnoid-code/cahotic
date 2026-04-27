@@ -1,13 +1,13 @@
 use std::marker::PhantomData;
 
 use crate::{
-    Cahotic, DefaultOutput, DefaultSchedule, DefaultTask, OutputTrait, SchedulerTrait, TaskTrait,
+    Cahotic, DefaultOutput, DefaultSchedule, DefaultTask, JobTrait, OutputTrait, TaskTrait,
 };
 
 pub struct CahoticBuilder<F, FS, O, const N: usize, const MAX_RING_BUFFER: usize>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
-    FS: SchedulerTrait<O> + Send + 'static + Sync,
+    FS: JobTrait<O> + Send + 'static + Sync,
     O: 'static + OutputTrait + Send + Sync,
 {
     task: PhantomData<F>,
@@ -46,7 +46,7 @@ impl<F, FS, O, const N: usize, const MAX_RING_BUFFER: usize>
     CahoticBuilder<F, FS, O, N, MAX_RING_BUFFER>
 where
     F: TaskTrait<O> + 'static + Send + Sync,
-    FS: SchedulerTrait<O> + Send + 'static + Sync,
+    FS: JobTrait<O> + Send + 'static + Sync,
     O: 'static + OutputTrait + Send + Sync,
 {
     pub fn set_task_type<T>(self) -> CahoticBuilder<T, FS, O, N, MAX_RING_BUFFER>
@@ -62,7 +62,7 @@ where
 
     pub fn set_schedule_type<T>(self) -> CahoticBuilder<F, T, O, N, MAX_RING_BUFFER>
     where
-        T: SchedulerTrait<O> + Send + 'static + Sync,
+        T: JobTrait<O> + Send + 'static + Sync,
     {
         CahoticBuilder {
             output: PhantomData::default(),
@@ -76,7 +76,7 @@ where
     ) -> CahoticBuilder<TASK, SCHEDULE, OUTPUT, N, MAX_RING_BUFFER>
     where
         TASK: TaskTrait<OUTPUT> + 'static + Send + Sync,
-        SCHEDULE: SchedulerTrait<OUTPUT> + Send + 'static + Sync,
+        SCHEDULE: JobTrait<OUTPUT> + Send + 'static + Sync,
         OUTPUT: 'static + OutputTrait + Send + Sync,
     {
         CahoticBuilder {
