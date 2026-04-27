@@ -78,13 +78,18 @@ where
     }
 
     pub fn after(&self, job: &Job<FS, O>) {
-        self.inner.counter.fetch_add(1, Ordering::Relaxed);
+        self.inner.exec_counter.fetch_add(1, Ordering::Relaxed);
         self.inner
             .return_ptr_list
             .borrow_mut()
             .push(job.inner.return_ptr);
+        self.inner
+            .parent_quota
+            .borrow_mut()
+            .push(AtomicUsize::new(64));
 
-        job.inner.job_list.borrow_mut().push(self.clone_inner());
+        job.inner.child_counter.fetch_and(1, Ordering::Relaxed);
+        job.inner.child_list.borrow_mut().push(self.clone_inner());
     }
 
     // additional methods
@@ -104,10 +109,13 @@ where
     O: 'static + OutputTrait + Send,
 {
     pub(crate) task: FS,
-    pub(crate) counter: AtomicUsize,
-    pub(crate) job_list: RefCell<Vec<Arc<InnerJob<FS, O>>>>,
+    pub(crate) child_counter: AtomicUsize,
+    pub(crate) exec_counter: AtomicUsize,
+    pub(crate) child_list: RefCell<Vec<Arc<InnerJob<FS, O>>>>,
     pub(crate) return_ptr: &'static AtomicPtr<O>,
     pub(crate) return_ptr_list: RefCell<Vec<&'static AtomicPtr<O>>>,
+    pub(crate) parent_quota_head: AtomicUsize,
+    pub(crate) parent_quota: RefCell<Vec<AtomicUsize>>,
 }
 
 impl<FS, O> InnerJob<FS, O>
@@ -118,10 +126,18 @@ where
     pub fn create_job(task: FS) -> InnerJob<FS, O> {
         Self {
             task,
-            counter: AtomicUsize::new(0),
-            job_list: RefCell::new(vec![]),
+            child_counter: AtomicUsize::new(0),
+            exec_counter: AtomicUsize::new(0),
+            child_list: RefCell::new(vec![]),
             return_ptr: Box::leak(Box::new(AtomicPtr::new(null_mut()))),
             return_ptr_list: RefCell::new(vec![]),
+            parent_quota_head: AtomicUsize::new(0),
+            parent_quota: RefCell::new(vec![]),
         }
+    }
+
+    pub fn push_parent_quota(&self, quota_idx: usize) {
+        let idx = self.parent_quota_head.fetch_add(1, Ordering::Relaxed);
+        self.parent_quota.borrow()[idx].store(quota_idx, Ordering::Relaxed);
     }
 }

@@ -49,4 +49,12 @@ where
 
         quota_use
     }
+
+    pub fn add_used_quota(&self, val: usize) {
+        unsafe {
+            let quota_use = self.use_quota.load(Ordering::Relaxed);
+            let quota_unit = &mut (&mut (*self.quota_list.load(Ordering::Relaxed)))[quota_use];
+            quota_unit.fetch_add(val, Ordering::Relaxed);
+        }
+    }
 }

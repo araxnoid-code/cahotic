@@ -42,8 +42,10 @@ where
                 let output = Box::into_raw(Box::new(job.task.execute(sch_vec)));
                 job.return_ptr.store(output, Ordering::Release);
 
-                for child in job.job_list.take() {
-                    let counter = child.counter.fetch_sub(1, Ordering::Relaxed);
+                let quota_idx = task.drop_handler;
+                for child in job.child_list.take() {
+                    child.push_parent_quota(quota_idx);
+                    let counter = child.exec_counter.fetch_sub(1, Ordering::Relaxed);
 
                     if counter == 1 {
                         let job = Job { inner: child };
@@ -52,7 +54,6 @@ where
                 }
 
                 unsafe {
-                    let quota_idx = task.drop_handler;
                     let counter = (*self.packet_core.quota_list.load(Ordering::Relaxed))[quota_idx]
                         .counter
                         .fetch_sub(1, Ordering::Relaxed);
@@ -63,6 +64,21 @@ where
                         self.packet_core
                             .drop_bitmap
                             .fetch_or(1 << quota_idx, Ordering::Release);
+                    }
+
+                    for parent_quota_idx in job.parent_quota.borrow().iter() {
+                        let idx = parent_quota_idx.load(Ordering::Relaxed);
+                        let counter = (*self.packet_core.quota_list.load(Ordering::Relaxed))[idx]
+                            .counter
+                            .fetch_sub(1, Ordering::Relaxed);
+
+                        if counter != 1 {
+                            // self.done_task.fetch_add(1, Ordering::Relaxed);
+                        } else {
+                            self.packet_core
+                                .drop_bitmap
+                                .fetch_or(1 << quota_idx, Ordering::Release);
+                        }
                     }
                 }
             }
