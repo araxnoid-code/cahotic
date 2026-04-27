@@ -72,9 +72,7 @@ where
                             .counter
                             .fetch_sub(1, Ordering::Relaxed);
 
-                        if counter != 1 {
-                            // self.done_task.fetch_add(1, Ordering::Relaxed);
-                        } else {
+                        if counter == 1 {
                             self.packet_core
                                 .drop_bitmap
                                 .fetch_or(1 << quota_idx, Ordering::Release);

@@ -88,7 +88,7 @@ where
             .borrow_mut()
             .push(AtomicUsize::new(64));
 
-        job.inner.child_counter.fetch_and(1, Ordering::Relaxed);
+        job.inner.child_counter.fetch_add(1, Ordering::Relaxed);
         job.inner.child_list.borrow_mut().push(self.clone_inner());
     }
 
