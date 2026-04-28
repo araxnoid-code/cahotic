@@ -41,28 +41,53 @@ where
                 job.return_ptr.store(output, Ordering::Release);
 
                 let quota_idx = task.drop_handler;
-                for child in job.child_list.take() {
-                    child.push_parent_quota(quota_idx);
-                    let counter = child.exec_counter.fetch_sub(1, Ordering::Relaxed);
+                // for child in job.child_list.take() {
+                //     child.push_parent_quota(quota_idx);
+                //     let counter = child.exec_counter.fetch_sub(1, Ordering::Relaxed);
 
-                    if counter == 1 {
-                        let job = Job { inner: child };
-                        self.packet_core.job_enqueue(job);
-                    }
-                }
+                //     if counter == 1 {
+                //         let job = Job { inner: child };
+                //         self.packet_core.job_enqueue(job);
+                //     }
+                // }
 
                 unsafe {
-                    let counter = (*self.packet_core.quota_list.load(Ordering::Relaxed))[quota_idx]
-                        .counter
-                        .fetch_sub(1, Ordering::Relaxed);
+                    let job_child = job.child_list.take();
+                    if job_child.is_empty() {
+                        let counter = (*self.packet_core.quota_list.load(Ordering::Relaxed))
+                            [quota_idx]
+                            .counter
+                            .fetch_sub(1, Ordering::Relaxed);
 
-                    if counter != 1 {
-                        self.done_task.fetch_add(1, Ordering::Relaxed);
+                        if counter != 1 {
+                            self.done_task.fetch_add(1, Ordering::Relaxed);
+                        } else {
+                            self.packet_core
+                                .drop_bitmap
+                                .fetch_or(1 << quota_idx, Ordering::Release);
+                        }
                     } else {
-                        self.packet_core
-                            .drop_bitmap
-                            .fetch_or(1 << quota_idx, Ordering::Release);
+                        for child in job_child {
+                            child.push_parent_quota(quota_idx);
+                            let counter = child.exec_counter.fetch_sub(1, Ordering::Relaxed);
+
+                            if counter == 1 {
+                                self.packet_core.job_enqueue(Job { inner: child });
+                            }
+                        }
                     }
+
+                    // let counter = (*self.packet_core.quota_list.load(Ordering::Relaxed))[quota_idx]
+                    //     .counter
+                    //     .fetch_sub(1, Ordering::Relaxed);
+
+                    // if counter != 1 {
+                    // self.done_task.fetch_add(1, Ordering::Relaxed);
+                    // } else {
+                    //     self.packet_core
+                    //         .drop_bitmap
+                    //         .fetch_or(1 << quota_idx, Ordering::Release);
+                    // }
 
                     for parent_quota_idx in job.parent_quota.borrow().iter() {
                         let idx = parent_quota_idx.load(Ordering::Relaxed);
@@ -70,7 +95,9 @@ where
                             .counter
                             .fetch_sub(1, Ordering::Relaxed);
 
-                        if counter == 1 {
+                        if counter != 1 {
+                            self.done_task.fetch_add(1, Ordering::Relaxed);
+                        } else {
                             self.packet_core
                                 .drop_bitmap
                                 .fetch_or(1 << quota_idx, Ordering::Release);

@@ -71,7 +71,7 @@ where
     FS: JobTrait<O> + Send + 'static,
     O: 'static + OutputTrait + Send,
 {
-    pub fn create_job(task: FS) -> Job<FS, O> {
+    pub fn new(task: FS) -> Job<FS, O> {
         Self {
             inner: Arc::new(InnerJob::create_job(task)),
         }

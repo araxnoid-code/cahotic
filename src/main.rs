@@ -1,3 +1,5 @@
+use std::{thread::sleep, time::Duration};
+
 use cahotic::{Cahotic, CahoticBuilder, DefaultJob, DefaultOutput, DefaultTask, Job, ScheduledJob};
 
 fn main() {
@@ -9,33 +11,32 @@ fn main() {
         4096,
     > = CahoticBuilder::default::<usize>().build().unwrap();
 
-    let tensor_c: Job<DefaultJob<DefaultOutput<usize>>, DefaultOutput<usize>> =
-        Job::create_job(DefaultJob(|_| {
-            println!("done task {} + {} = {}", 10, 20, 10 + 20);
-            DefaultOutput(10 + 20)
-        }));
+    for i in 0..62 {
+        cahotic.spawn_task(DefaultTask(|| DefaultOutput(10)));
+    }
 
-    let tensor_d: ScheduledJob<DefaultJob<DefaultOutput<usize>>, DefaultOutput<usize>> =
-        Job::create_job(DefaultJob(|dep| {
-            let c: &DefaultOutput<usize> = dep.get(0).unwrap();
+    let job_1 = Job::new(DefaultJob(|_| {
+        sleep(Duration::from_millis(500));
+        println!("1 done");
+        DefaultOutput(10)
+    }));
 
-            println!("done task {} + {} = {}", c.0, 20, c.0 + 20);
-            DefaultOutput(c.0 + 20)
-        }))
-        .after(&tensor_c);
+    let job_2 = Job::new(DefaultJob(|_| {
+        sleep(Duration::from_millis(250));
+        println!("2 done");
+        DefaultOutput(10)
+    }));
 
-    let tensor_e: ScheduledJob<DefaultJob<DefaultOutput<usize>>, DefaultOutput<usize>> =
-        Job::create_job(DefaultJob(|dep| {
-            let c: &DefaultOutput<usize> = dep.get(0).unwrap();
-            let d: &DefaultOutput<usize> = dep.get(1).unwrap();
+    // let job_3 = Job::new(DefaultJob(|_| {
+    //     sleep(Duration::from_millis(1000));
+    //     println!("3 done");
+    //     DefaultOutput(10)
+    // }))
+    // .after(&job_1)
+    // .after(&job_2);
 
-            println!("done task {} + {} = {}", c.0, d.0, c.0 + d.0);
-            DefaultOutput(c.0 + d.0)
-        }))
-        .after(&tensor_c)
-        .after(&tensor_d);
-
-    cahotic.job_exec(tensor_c);
+    cahotic.job_exec(job_1);
+    cahotic.job_exec(job_2);
 
     cahotic.join();
 }
