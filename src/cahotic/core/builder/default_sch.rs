@@ -1,10 +1,10 @@
 use crate::{JobTrait, JobVec, OutputTrait};
 
-pub struct DefaultSchedule<O>(pub fn(vector: JobVec<O>) -> O)
+pub struct DefaultJob<O>(pub fn(vector: JobVec<O>) -> O)
 where
     O: OutputTrait + 'static + Send;
 
-impl<O> JobTrait<O> for DefaultSchedule<O>
+impl<O> JobTrait<O> for DefaultJob<O>
 where
     O: OutputTrait + 'static + Send,
 {

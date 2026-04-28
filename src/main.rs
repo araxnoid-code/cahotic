@@ -1,45 +1,41 @@
-use std::{thread::sleep, time::Duration};
-
-use cahotic::{CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask, Job};
+use cahotic::{Cahotic, CahoticBuilder, DefaultJob, DefaultOutput, DefaultTask, Job, ScheduledJob};
 
 fn main() {
-    let cahotic = CahoticBuilder::default()
-        .set_workers::<16>()
-        .build()
-        .unwrap();
+    let cahotic: Cahotic<
+        DefaultTask<DefaultOutput<usize>>,
+        DefaultJob<DefaultOutput<usize>>,
+        DefaultOutput<usize>,
+        4,
+        4096,
+    > = CahoticBuilder::default::<usize>().build().unwrap();
 
-    for i in 0..62 {
-        cahotic.spawn_task(DefaultTask(|| {
-            sleep(Duration::from_millis(250));
-            DefaultOutput(0)
+    let tensor_c: Job<DefaultJob<DefaultOutput<usize>>, DefaultOutput<usize>> =
+        Job::create_job(DefaultJob(|_| {
+            println!("done task {} + {} = {}", 10, 20, 10 + 20);
+            DefaultOutput(10 + 20)
         }));
-    }
 
-    let job_1 = Job::create_job(DefaultSchedule(|_| {
-        sleep(Duration::from_millis(1000));
-        println!("1 done!");
-        DefaultOutput(10)
-    }));
+    let tensor_d: ScheduledJob<DefaultJob<DefaultOutput<usize>>, DefaultOutput<usize>> =
+        Job::create_job(DefaultJob(|dep| {
+            let c: &DefaultOutput<usize> = dep.get(0).unwrap();
 
-    let job_2 = Job::create_job(DefaultSchedule(|_| {
-        sleep(Duration::from_millis(250));
-        println!("2 done!");
-        DefaultOutput(20)
-    }));
+            println!("done task {} + {} = {}", c.0, 20, c.0 + 20);
+            DefaultOutput(c.0 + 20)
+        }))
+        .after(&tensor_c);
 
-    let job_3 = Job::create_job(DefaultSchedule(|vec| {
-        sleep(Duration::from_millis(2000));
-        let value_1: &DefaultOutput<i32> = vec.get(0).unwrap();
-        let value_2 = vec.get(1).unwrap();
-        println!("3 done! with value {} and {}", value_1.0, value_2.0);
-        DefaultOutput(10)
-    }));
+    let tensor_e: ScheduledJob<DefaultJob<DefaultOutput<usize>>, DefaultOutput<usize>> =
+        Job::create_job(DefaultJob(|dep| {
+            let c: &DefaultOutput<usize> = dep.get(0).unwrap();
+            let d: &DefaultOutput<usize> = dep.get(1).unwrap();
 
-    job_3.after(&job_1);
-    job_3.after(&job_2);
+            println!("done task {} + {} = {}", c.0, d.0, c.0 + d.0);
+            DefaultOutput(c.0 + d.0)
+        }))
+        .after(&tensor_c)
+        .after(&tensor_d);
 
-    cahotic.job_exec(job_1);
-    cahotic.job_exec(job_2);
+    cahotic.job_exec(tensor_c);
 
     cahotic.join();
 }

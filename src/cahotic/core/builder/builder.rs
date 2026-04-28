@@ -1,8 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{
-    Cahotic, DefaultOutput, DefaultSchedule, DefaultTask, JobTrait, OutputTrait, TaskTrait,
-};
+use crate::{Cahotic, DefaultJob, DefaultOutput, DefaultTask, JobTrait, OutputTrait, TaskTrait};
 
 pub struct CahoticBuilder<F, FS, O, const N: usize, const MAX_RING_BUFFER: usize>
 where
@@ -18,7 +16,7 @@ where
 impl
     CahoticBuilder<
         DefaultTask<DefaultOutput<usize>>,
-        DefaultSchedule<DefaultOutput<usize>>,
+        DefaultJob<DefaultOutput<usize>>,
         DefaultOutput<usize>,
         4,
         4096,
@@ -26,7 +24,7 @@ impl
 {
     pub fn default<OutputType>() -> CahoticBuilder<
         DefaultTask<DefaultOutput<OutputType>>,
-        DefaultSchedule<DefaultOutput<OutputType>>,
+        DefaultJob<DefaultOutput<OutputType>>,
         DefaultOutput<OutputType>,
         4,
         4096,

@@ -77,19 +77,23 @@ where
         }
     }
 
-    pub fn after(&self, job: &Job<FS, O>) {
+    pub fn after<A>(self, job: &A) -> ScheduledJob<FS, O>
+    where
+        A: JobAfter<FS, O>,
+    {
         self.inner.exec_counter.fetch_add(1, Ordering::Relaxed);
         self.inner
             .return_ptr_list
             .borrow_mut()
-            .push(job.inner.return_ptr);
+            .push(job.inner().return_ptr);
         self.inner
             .parent_quota
             .borrow_mut()
             .push(AtomicUsize::new(64));
 
-        job.inner.child_counter.fetch_add(1, Ordering::Relaxed);
-        job.inner.child_list.borrow_mut().push(self.clone_inner());
+        job.inner().child_counter.fetch_add(1, Ordering::Relaxed);
+        job.inner().child_list.borrow_mut().push(self.clone_inner());
+        ScheduledJob { job: self }
     }
 
     // additional methods
@@ -170,4 +174,55 @@ where
     O: OutputTrait + 'static + Send,
 {
     fn execute(&self, scheduler_vec: JobVec<O>) -> O;
+}
+
+///
+pub struct ScheduledJob<FS, O>
+where
+    FS: JobTrait<O> + Send + 'static,
+    O: 'static + OutputTrait + Send,
+{
+    job: Job<FS, O>,
+}
+
+impl<FS, O> ScheduledJob<FS, O>
+where
+    FS: JobTrait<O> + Send + 'static,
+    O: 'static + OutputTrait + Send,
+{
+    pub fn after<A>(self, job: &A) -> ScheduledJob<FS, O>
+    where
+        A: JobAfter<FS, O>,
+    {
+        self.job.after(job)
+    }
+}
+
+///
+pub trait JobAfter<FS, O>
+where
+    FS: JobTrait<O> + Send + 'static,
+    O: 'static + OutputTrait + Send,
+{
+    fn inner(&self) -> &InnerJob<FS, O>;
+}
+
+impl<FS, O> JobAfter<FS, O> for Job<FS, O>
+where
+    FS: JobTrait<O> + Send + 'static,
+    O: 'static + OutputTrait + Send,
+{
+    fn inner(&self) -> &InnerJob<FS, O> {
+        &self.inner
+    }
+}
+
+impl<FS, O> JobAfter<FS, O> for ScheduledJob<FS, O>
+where
+    FS: JobTrait<O> + Send + 'static,
+    O: 'static + OutputTrait + Send,
+{
+    fn inner(&self) -> &InnerJob<FS, O> {
+        &self.job.inner
+    }
 }
