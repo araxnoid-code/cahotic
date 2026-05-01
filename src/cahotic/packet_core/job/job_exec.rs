@@ -1,7 +1,8 @@
 use std::{hint::spin_loop, sync::atomic::Ordering};
 
 use crate::{
-    DequeueStatus, ExecTask, Job, JobTrait, OutputTrait, PacketCore, TaskTrait, WaitingTask,
+    DequeueStatus, ExecTask, Job, JobTrait, OutputTrait, PacketCore, PollWaiting, TaskTrait,
+    WaitingTask,
 };
 
 impl<F, FS, O, const MAX_RING_BUFFER: usize> PacketCore<F, FS, O, MAX_RING_BUFFER>
@@ -45,7 +46,7 @@ where
         }
     }
 
-    pub fn job_enqueue(&self, job: Job<FS, O>) {
+    pub fn job_enqueue(&self, job: Job<FS, O>) -> PollWaiting<O> {
         unsafe {
             self.in_task.fetch_add(1, Ordering::Relaxed);
             let head = self.job_head.fetch_add(1, Ordering::Relaxed) & (MAX_RING_BUFFER - 1) as u64;
@@ -59,13 +60,17 @@ where
 
             let waiting_task = WaitingTask {
                 _id: head,
-                return_ptr: Some(job.inner.return_ptr),
                 task: ExecTask::Job(job.clone_inner()),
+                return_ptr: Some(job.inner.return_ptr),
                 drop_handler: self.push_to_quota((job.inner.return_ptr, None, None)),
             };
 
             job_unit.inner = Some(waiting_task);
             job_unit.empty.store(false, Ordering::Release);
+
+            PollWaiting {
+                data_ptr: job.inner.return_ptr,
+            }
         }
     }
 }

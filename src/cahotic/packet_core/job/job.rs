@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-use crate::{OutputTrait, TaskTrait, WaitingTask};
+use crate::{OutputTrait, PollWaiting, TaskTrait, WaitingTask};
 
 /// JobUnit
 #[repr(align(64))]
@@ -147,14 +147,14 @@ where
 }
 
 ///
-pub struct JobVec<O>
+pub struct DependenciesVec<O>
 where
     O: 'static + OutputTrait + Send,
 {
     pub(crate) vec: Vec<&'static AtomicPtr<O>>,
 }
 
-impl<O> JobVec<O>
+impl<O> DependenciesVec<O>
 where
     O: 'static + OutputTrait + Send,
 {
@@ -173,7 +173,7 @@ pub trait JobTrait<O>
 where
     O: OutputTrait + 'static + Send,
 {
-    fn execute(&self, scheduler_vec: JobVec<O>) -> O;
+    fn execute(&self, scheduler_vec: DependenciesVec<O>) -> O;
 }
 
 ///
@@ -195,6 +195,12 @@ where
         A: JobAfter<FS, O>,
     {
         self.job.after(job)
+    }
+
+    pub fn to_poll(self) -> PollWaiting<O> {
+        PollWaiting {
+            data_ptr: self.job.inner.return_ptr,
+        }
     }
 }
 

@@ -48,8 +48,8 @@ where
     }
 
     // job
-    pub fn job_exec(&self, job: Job<FS, O>) {
-        self.packet_core.job_enqueue(job);
+    pub fn job_exec(&self, job: Job<FS, O>) -> PollWaiting<O> {
+        self.packet_core.job_enqueue(job)
     }
 
     // end

@@ -1,6 +1,6 @@
 use std::sync::atomic::Ordering;
 
-use crate::{DequeueStatus, ExecTask, Job, JobTrait, JobVec, OutputTrait, TaskTrait, ThreadUnit};
+use crate::{DequeueStatus, ExecTask, Job, JobTrait, DependenciesVec, OutputTrait, TaskTrait, ThreadUnit};
 
 impl<F, FD, O, const MAX_RING_BUFFER: usize> ThreadUnit<F, FD, O, MAX_RING_BUFFER>
 where
@@ -33,7 +33,7 @@ where
             self.break_counter = 0;
 
             if let ExecTask::Job(job) = task.task {
-                let sch_vec = JobVec {
+                let sch_vec = DependenciesVec {
                     vec: job.return_ptr_list.take(),
                 };
 
