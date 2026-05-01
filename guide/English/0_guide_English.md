@@ -3,8 +3,8 @@
 ### Spawn
 [1_initial_and_spawn.md](1_initial_and_spawn.md)
 
-### Schedule
-[2_schedule.md](2_schedule.md)
+### Job
+[2_job.md](2_job.md)
 
 ## architecture
 ### ring buffer
@@ -16,8 +16,5 @@
 ### Drop
 [5_drop.md](5_drop.md)
 
-### Schedule Execution
-[6_schedule_execution.md](6_schedule_execution.md)
-
 ### customization
-[7_customization.md](7_customization.md)
+[6_customization.md](6_customization.md)
