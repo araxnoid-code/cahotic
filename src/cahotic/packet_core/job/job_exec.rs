@@ -57,7 +57,6 @@ where
                 spin_loop();
             }
 
-            let child_counter = job.inner.child_counter.load(Ordering::Relaxed);
             let waiting_task = WaitingTask {
                 _id: head,
                 return_ptr: Some(job.inner.return_ptr),
@@ -65,7 +64,6 @@ where
                 drop_handler: self.push_to_quota((job.inner.return_ptr, None, None)),
             };
 
-            // self.add_used_quota(child_counter);
             job_unit.inner = Some(waiting_task);
             job_unit.empty.store(false, Ordering::Release);
         }
