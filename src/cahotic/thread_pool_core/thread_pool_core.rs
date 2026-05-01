@@ -114,7 +114,6 @@ where
             );
 
             if quota_idx < 64 {
-                println!("drop dilakukan oleh cahotic");
                 quota_list[quota_idx].free();
             }
             drop(quota_list);

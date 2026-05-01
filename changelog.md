@@ -1,4 +1,8 @@
 # Changelog
+# Version/0.3.1
+- fix bug due to inconsistency in the counter that counts completed tasks with incoming tasks
+-  add testing code
+
 # Version/0.3.0
 - Added `CahoticBuilder` for cahotic initialization which allows fast initialization with default values and clear changes.
 1. customization ring buffer size and workers
