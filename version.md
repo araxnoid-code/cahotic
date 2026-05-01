@@ -1,4 +1,15 @@
 # Version/0.4.0
+In short, the changes that occurred include:
+- removes the use of the `Schedule` struct
+- Code that still uses the old schedule concept has been removed or changed
+- scheduling now uses `Job`
+- change `SchedulerTrait` to `JobTrait`
+- change the flow of usage in scheduling
+- execution on `Job` is different from before which used `Schedule`
+- add a job ring-buffer that is the same size as the task ring-buffer
+- Quota can now be accessed by tasks and jobs without interfering with each other
+
+
 ## opening
 because scheduling in Cahotic version 0.3.1 has limitations, namely it can only create 64 schedules at one time and separate schedules in the scheduling cannot communicate with each other directly, so for uses that require large scheduling it will be very disrupted. Therefore cahotic version 0.4.0 removes `Schedule` and replaces it with `job`
 
