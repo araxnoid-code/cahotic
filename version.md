@@ -8,6 +8,7 @@ In short, the changes that occurred include:
 - execution on `Job` is different from before which used `Schedule`
 - add a job ring-buffer that is the same size as the task ring-buffer
 - Quota can now be accessed by tasks and jobs without interfering with each other
+- update guide following the latest changes
 
 
 ## opening
