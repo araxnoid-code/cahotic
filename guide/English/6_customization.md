@@ -28,7 +28,6 @@ fn main() {
 
     cahotic.join();
 }
-
 ```
 this is a default feature.
 1. for output use `DefaultOutput`
