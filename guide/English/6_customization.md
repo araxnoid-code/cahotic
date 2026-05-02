@@ -1,11 +1,11 @@
 # Customization
-cahotic has provided DefaultOutput, DefaultTask, and DefaultSchedule for rapid development. However, if there are cases that require customization, cahotic still provides them as in the initial version (version/0.2.1 and below), but in the latest version has added CahoticBuilder which improves readability, therefore it is recommended to use `CahoticBuilder`.
+cahotic has provided DefaultOutput, DefaultTask, and DefaultJob for rapid development. However, if there are cases that require customization, cahotic still provides them as in the initial version (version/0.2.1 and below), but in the latest version has added CahoticBuilder which improves readability, therefore it is recommended to use `CahoticBuilder`.
 
 ## Default
 ```rust
 use std::{thread::sleep, time::Duration};
 
-use cahotic::{CahoticBuilder, DefaultOutput, DefaultSchedule, DefaultTask};
+use cahotic::{CahoticBuilder, DefaultJob, DefaultOutput, DefaultTask, Job};
 
 fn main() {
     let cahotic = CahoticBuilder::default::<i32>().build().unwrap();
@@ -18,13 +18,10 @@ fn main() {
     }));
 
     // scheduling
-    let mut poll_1 = cahotic.scheduling_create_initial(DefaultTask(|| DefaultOutput(20)));
-    let mut poll_2 =
-        cahotic.scheduling_create_schedule(DefaultSchedule(|schedule_vec| DefaultOutput(20)));
-    cahotic.schedule_after(&mut poll_2, &mut poll_1).unwrap();
+    let poll_1 = Job::new(DefaultJob(|_| DefaultOutput(20)));
+    let poll_2 = Job::new(DefaultJob(|_| DefaultOutput(20))).after(&poll_1);
 
-    cahotic.schedule_exec(poll_2);
-    cahotic.schedule_exec(poll_1);
+    cahotic.job_exec(poll_1);
 
     cahotic.join();
 }
@@ -32,7 +29,7 @@ fn main() {
 this is a default feature.
 1. for output use `DefaultOutput`
 2. for tasks using `DefaultTask`
-3. to schedule use `DefaultSchedule`
+3. to scheduling use `DefaultJob`
 4. for the ring buffer size is 4096
 5. for the number of workers is 4
 
@@ -45,7 +42,7 @@ use cahotic::{CahoticBuilder, DefaultOutput, DefaultTask};
 fn main() {
     let cahotic = CahoticBuilder::default::<i32>()
         .set_ring_buffer_size::<2048>() // ring buffer size
-        .set_workers::<8>() // number of workers
+        .set_workers::<8>() // jumlah workers
         .build()
         .unwrap();
 
@@ -107,52 +104,53 @@ fn main() {
 ```
 To customize a task, a data type that will be used as a task must implement the `TaskTrait` trait and be registered in CahoticBuilder using the `CahoticBuilder::set_task_type<T>(self)` method.
 
-## customize Schedule
+## customize Job
 ```rust
-use cahotic::{CahoticBuilder, DefaultOutput, DefaultTask, ScheduleVec, SchedulerTrait, TaskTrait};
+use cahotic::{CahoticBuilder, DefaultOutput, DependenciesVec, Job, JobTrait};
 
-struct MySchedule(fn(schedule_vec: ScheduleVec<DefaultOutput<usize>>) -> DefaultOutput<usize>);
+struct MyJob(fn(schedule_vec: DependenciesVec<DefaultOutput<usize>>) -> DefaultOutput<usize>);
 
-impl SchedulerTrait<DefaultOutput<usize>> for MySchedule {
-    fn execute(&self, scheduler_vec: ScheduleVec<DefaultOutput<usize>>) -> DefaultOutput<usize> {
+impl JobTrait<DefaultOutput<usize>> for MyJob {
+    fn execute(
+        &self,
+        scheduler_vec: DependenciesVec<DefaultOutput<usize>>,
+    ) -> DefaultOutput<usize> {
         (self.0)(scheduler_vec)
     }
 }
 
 fn main() {
     let cahotic = CahoticBuilder::default::<usize>()
-        .set_schedule_type::<MySchedule>() // schedule
+        .set_schedule_type::<MyJob>()
         .build()
         .unwrap();
 
-    let mut poll_1 = cahotic.scheduling_create_initial(DefaultTask(|| DefaultOutput(10)));
-    let mut poll_2 = cahotic.scheduling_create_initial(DefaultTask(|| DefaultOutput(20)));
+    let job_1 = Job::new(MyJob(|_| DefaultOutput(10)));
+    let job_2 = Job::new(MyJob(|_| DefaultOutput(20)));
 
-    let mut poll_3 = cahotic.scheduling_create_schedule(MySchedule(|vec| {
+    let job_3 = Job::new(MyJob(|vec| {
         let data_1 = vec.get(0).unwrap();
         let data_2 = vec.get(1).unwrap();
         let result = data_1.0 + data_2.0;
         println!("result => {}", result);
 
         DefaultOutput(result)
-    }));
+    }))
+    .after(&job_1)
+    .after(&job_2);
 
-    cahotic.schedule_after(&mut poll_3, &mut poll_1).unwrap();
-    cahotic.schedule_after(&mut poll_3, &mut poll_2).unwrap();
-
-    cahotic.schedule_exec(poll_3);
-    cahotic.schedule_exec(poll_2);
-    cahotic.schedule_exec(poll_1);
+    cahotic.job_exec(job_1);
+    cahotic.job_exec(job_2);
 
     cahotic.join();
 }
 ```
-To customize the schedule, a data type that will be used as a schedule must implement the `SchedulerTrait` trait and be registered in CahoticBuilder using the `CahoticBuilder::set_schedule_type<T>(self)` method.
+To customize the job, a data type that will be used as a schedule must implement the `JobTrait` trait and be registered in CahoticBuilder using the `CahoticBuilder::set_schedule_type<T>(self)` method.
 
 ## customize Output
 In customizing the output, notation for tasks and schedules is also required.
 ```rust
-use cahotic::{CahoticBuilder, DefaultSchedule, DefaultTask, OutputTrait};
+use cahotic::{CahoticBuilder, DefaultJob, DefaultTask, OutputTrait};
 
 enum MyOutput {
     Number(i32),
@@ -163,7 +161,7 @@ impl OutputTrait for MyOutput {}
 
 fn main() {
     let cahotic = CahoticBuilder::default::<usize>()
-        .set_type::<DefaultTask<MyOutput>, DefaultSchedule<MyOutput>, MyOutput>()
+        .set_type::<DefaultTask<MyOutput>, DefaultJob<MyOutput>, MyOutput>()
         .build()
         .unwrap();
 
@@ -173,4 +171,4 @@ fn main() {
     cahotic.join();
 }
 ```
-To customize the output, a data type that will be output must implement the `OutputTrait` trait and use the `CahoticBuilder::set_type<TASK, SCHEDULE, OUTPUT>(self)` method.
+To customize the output, a data type that will be output must implement the `OutputTrait` trait and use the `CahoticBuilder::set_type<TASK, JOB, OUTPUT>(self)` method.
